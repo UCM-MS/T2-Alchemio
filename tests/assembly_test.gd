@@ -49,6 +49,7 @@ func run_checks() -> void:
 	multiple.set_bond(12, 13, 1)
 	check(multiple.preview().products == {"hydrogen": 2}, "Two separate molecules yield two portions")
 	var main = load("res://scenes/main.tscn").instantiate()
+	main.persistence_enabled = false
 	root.add_child(main)
 	await process_frame
 	await process_frame
@@ -170,5 +171,3 @@ func screenshot(path: String) -> void:
 func check(condition: bool, message: String) -> void:
 	if not condition:
 		failures.append(message)
-
-

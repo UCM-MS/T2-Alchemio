@@ -3,6 +3,11 @@ const MapScene = preload("res://scenes/collection_map.tscn")
 const Inventory = preload("res://scripts/inventory.gd")
 const Research = preload("res://scripts/research.gd")
 const LabScene = preload("res://scenes/laboratory.tscn")
+const SaveService = preload("res://scripts/save_service.gd")
+var save_service = SaveService.new()
+var persistence_enabled := true
+var save_label: Label
+var reset_confirmation: ConfirmationDialog
 var inventory = Inventory.new()
 var research = Research.new()
 var laboratory: Control
@@ -21,6 +26,12 @@ var preview_background: ColorRect
 
 func _ready() -> void:
 	TranslationServer.set_locale("sk")
+	var loaded: Dictionary = save_service.load_progress() if persistence_enabled else {"status": "missing"}
+	if loaded.has("data"):
+		inventory.stock = loaded.data.inventory
+		research.researched = loaded.data.researched
+		if loaded.data.carbon:
+			research.available_elements.append("C")
 	var hud := CanvasLayer.new()
 	hud.layer = 10
 	add_child(hud)
@@ -73,6 +84,8 @@ func _ready() -> void:
 	screen.add_child(laboratory)
 	laboratory.setup(inventory, research)
 	laboratory.new_collection_requested.connect(_new_collection)
+	laboratory.progress_changed.connect(_save_progress)
+	laboratory.new_game_requested.connect(_request_new_game)
 	laboratory.hide()
 	collection_map = MapScene.instantiate()
 	collection_map.available_elements = research.available_elements.duplicate()
@@ -80,6 +93,69 @@ func _ready() -> void:
 	collection_map.collection_finished.connect(_show_handoff)
 	finish_button.pressed.connect(collection_map.finish_collection)
 	add_child(collection_map)
+	_build_save_controls()
+	if loaded.has("data"):
+		# A loaded checkpoint resumes in a clean laboratory, not a spent graph.
+		preview_page.board.graph.finalized = true
+		collection_map.active = false
+		map_page.hide()
+		preview_background.show()
+		laboratory.show()
+		laboratory.refresh()
+		save_label.text = "Obnovené zo zálohy" if loaded.status == "recovered" else "Pokrok načítaný"
+	elif loaded.status == "invalid":
+		save_label.text = "Uloženie nemožno načítať. Súbor ostáva zachovaný; reset cez Nová hra."
+	else:
+		save_label.text = "Ukladá sa zásoba a výskum; rozpracovaný zber a skladanie nie."
+
+func _build_save_controls() -> void:
+	save_label = add_label(screen, "", 13, Color("a5b4cb"))
+	save_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	save_label.offset_left = -700
+	save_label.offset_right = -25
+	save_label.offset_top = -24
+	save_label.offset_bottom = -4
+	save_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var reset_button := Button.new()
+	reset_button.text = "Nová hra"
+	map_page.add_child(reset_button)
+	reset_button.position = Vector2(28, 24)
+	reset_button.pressed.connect(_request_new_game)
+	reset_confirmation = ConfirmationDialog.new()
+	reset_confirmation.title = "Nová hra?"
+	reset_confirmation.dialog_text = "Vymaže sa zásoba, výskum aj otvorené prvky.\nRozpracovaný zber a skladanie sa zahodia."
+	reset_confirmation.ok_button_text = "Začať odznova"
+	reset_confirmation.cancel_button_text = "Zrušiť"
+	reset_confirmation.confirmed.connect(_reset_game)
+	screen.add_child(reset_confirmation)
+
+func _request_new_game() -> void:
+	reset_confirmation.popup_centered(Vector2i(540, 180))
+
+func _save_progress() -> void:
+	if not persistence_enabled:
+		return
+	var success: bool = save_service.save_progress(inventory, research)
+	save_label.text = "Uložené · rozpracovaný zber a skladanie sa neukladajú" if success else "Uloženie zlyhalo · pokrok zatiaľ iba v tejto hre"
+	if OS.has_feature("web") and not OS.is_userfs_persistent():
+		save_label.text = "Prehliadač nepovolil trvalé uloženie · pokrok iba v tejto hre"
+
+func _reset_game() -> void:
+	var fresh_inventory = Inventory.new()
+	var fresh_research = Research.new()
+	if persistence_enabled and not save_service.reset_progress(fresh_inventory, fresh_research):
+		save_label.text = "Reset sa nepodarilo uložiť. Aktuálna hra ostáva zachovaná."
+		return
+	inventory = fresh_inventory
+	research = fresh_research
+	laboratory.discovery.hide()
+	laboratory.discovery.pending.clear()
+	laboratory.setup(inventory, research)
+	preview_page.confirmation.hide()
+	preview_page.board.graph.finalized = true
+	last_assembly_result.clear()
+	assembly_atoms.clear()
+	_new_collection()
 
 func _build_preview(target: Control) -> void:
 	if preview_background == null:
@@ -116,6 +192,7 @@ func _assembly_completed(result: Dictionary) -> void:
 	preview_page.hide()
 	laboratory.show()
 	laboratory.refresh()
+	_save_progress()
 
 func _new_collection() -> void:
 	if not preview_page.board.graph.finalized:
@@ -139,6 +216,7 @@ func _new_collection() -> void:
 		finish_button.pressed.disconnect(connection.callable)
 	finish_button.pressed.connect(collection_map.finish_collection)
 	add_child(collection_map)
+	_save_progress()
 
 func _update_cargo(atoms: Array[Dictionary], capacity: int) -> void:
 	var counts := {"H": 0, "O": 0, "C": 0}
@@ -177,5 +255,3 @@ func add_label(parent: Node, text: String, size: int, color := Color("edf3fc")) 
 	label.add_theme_constant_override("shadow_offset_y", 2)
 	parent.add_child(label)
 	return label
-
-

@@ -43,6 +43,7 @@ func run_checks() -> void:
 	alternative.investigate({"water": 1})
 	check("C" in alternative.available_elements, "Alternative pair also unlocks element")
 	var main = load("res://scenes/main.tscn").instantiate()
+	main.persistence_enabled = false
 	root.add_child(main)
 	await process_frame
 	await process_frame

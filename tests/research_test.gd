@@ -7,6 +7,7 @@ func _initialize() -> void:
 
 func run_checks() -> void:
 	var main = load("res://scenes/main.tscn").instantiate()
+	main.persistence_enabled = false
 	root.add_child(main)
 	await process_frame
 	await process_frame
@@ -81,4 +82,3 @@ func screenshot(filename: String) -> void:
 func check(condition: bool, message: String) -> void:
 	if not condition:
 		failures.append(message)
-

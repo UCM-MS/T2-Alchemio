@@ -1,5 +1,7 @@
 extends MarginContainer
 signal new_collection_requested
+signal progress_changed
+signal new_game_requested
 const Catalog = preload("res://scripts/catalog.gd")
 const ReagentCard = preload("res://scripts/reagent_card.gd")
 const FlaskTarget = preload("res://scripts/flask_drop_target.gd")
@@ -45,6 +47,10 @@ func _ready() -> void:
 	collection_button.text = "Kolekcia"
 	collection_button.pressed.connect(func(): discovery.show_collection())
 	header.add_child(collection_button)
+	var new_game := Button.new()
+	new_game.text = "Nová hra"
+	new_game.pressed.connect(func(): new_game_requested.emit())
+	header.add_child(new_game)
 	discovery = DiscoveryPanel.new()
 	add_child(discovery)
 	var help := Button.new()
@@ -53,7 +59,7 @@ func _ready() -> void:
 	var dialog := AcceptDialog.new()
 	dialog.title = "Ako používať laboratórium"
 	dialog.ok_button_text = "Rozumiem"
-	dialog.dialog_text = "ZÁSOBA A VÝSKUM\nPotiahni kartu na banku alebo klikni: pridá sa jedna porcia. Pustenie mimo nič neminie.\nPreskúmať vyžaduje jeden druh látky, neodoberá vzorku a opakovanie nepridá objav.\nKarty zostávajú v kolekcii; dva rôzne objavy otvoria nový prvok.\n\nTEPELNÝ POKUS\nHorák a chladenie fungujú iba pre čistú vodu pri 1 atm; var je v modeli pri 100 °C.\nPrístroje sa navzájom vypínajú. Bez horáka voda pomaly chladne k 20 °C.\nÚplné odparenie, zamŕzanie ani kondenzáciu nemodelujeme.\n\nREAKCIA\nZapáliť zmes spracuje jednu dávku CH₄ + 2 O₂ → CO₂ + 2 H₂O, bez ďalších látok.\nPorcie znamenajú rovnaké relatívne počty častíc, nie rovnakú hmotnosť.\nProdukty sa zobrazia po návrate na 20 °C; uvoľnené teplo nesimulujeme.\n\nVRÁTENIE A ULOŽENIE\nVrátiť obsah aj nový zber vrátia aktuálne porcie. Reakcia neobnoví spotrebované reagenty.\nZmena vzorky resetuje tepelný pokus na 20 °C. Je to reset modelu, nie návrat uniknutej pary.\nPlyny označuje text, nie farebná kvapalina. Zásoba a výskum platia do zatvorenia hry."
+	dialog.dialog_text = "ZÁSOBA A VÝSKUM\nPotiahni kartu na banku alebo klikni: pridá sa jedna porcia. Pustenie mimo nič neminie.\nPreskúmať vyžaduje jeden druh látky, neodoberá vzorku a opakovanie nepridá objav.\nKarty zostávajú v kolekcii; dva rôzne objavy otvoria nový prvok.\n\nTEPELNÝ POKUS\nHorák a chladenie fungujú iba pre čistú vodu pri 1 atm; var je v modeli pri 100 °C.\nPrístroje sa navzájom vypínajú. Bez horáka voda pomaly chladne k 20 °C.\nÚplné odparenie, zamŕzanie ani kondenzáciu nemodelujeme.\n\nREAKCIA\nZapáliť zmes spracuje jednu dávku CH₄ + 2 O₂ → CO₂ + 2 H₂O, bez ďalších látok.\nPorcie znamenajú rovnaké relatívne počty častíc, nie rovnakú hmotnosť.\nProdukty sa zobrazia po návrate na 20 °C; uvoľnené teplo nesimulujeme.\n\nVRÁTENIE A ULOŽENIE\nVrátiť obsah aj nový zber vrátia aktuálne porcie. Reakcia neobnoví spotrebované reagenty.\nZmena vzorky resetuje tepelný pokus na 20 °C. Je to reset modelu, nie návrat uniknutej pary.\nPlyny označuje text, nie farebná kvapalina. Zásoba a výskum sa ukladajú automaticky; obsah banky sa po načítaní vráti do zásoby.\nRozpracovaný zber a skladanie sa neukladajú. Nová hra vymaže pokrok až po potvrdení."
 	add_child(dialog)
 	help.pressed.connect(func(): dialog.popup_centered(Vector2i(760, 420)))
 	summary = _label(page, "", 16)
@@ -205,12 +211,14 @@ func setup(state: RefCounted, research_state: RefCounted) -> void:
 func _add(id: String) -> void:
 	if inventory.add_to_sample(id):
 		_reset_experiment()
+		progress_changed.emit()
 	refresh()
 
 func _return_sample() -> void:
 	inventory.return_sample()
 	_reset_experiment()
 	refresh()
+	progress_changed.emit()
 
 func _reset_experiment() -> void:
 	experiment.reset()
@@ -224,6 +232,7 @@ func _react() -> void:
 	if not experiment.react(inventory.sample):
 		return
 	refresh()
+	progress_changed.emit()
 
 func _process_notice(id: String) -> void:
 	match id:
@@ -268,6 +277,8 @@ func _investigate() -> void:
 	var had_carbon: bool = "C" in research.available_elements
 	var first: bool = research.investigate(inventory.sample)
 	refresh()
+	if first:
+		progress_changed.emit()
 	discovery.show_research(id, first, not had_carbon and "C" in research.available_elements)
 
 func refresh() -> void:
@@ -344,9 +355,3 @@ func _label(parent: Node, text: String, font_size: int) -> Label:
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	parent.add_child(label)
 	return label
-
-
-
-
-
-

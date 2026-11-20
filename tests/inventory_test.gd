@@ -6,6 +6,7 @@ func _initialize() -> void:
 
 func run_checks() -> void:
 	var main = load("res://scenes/main.tscn").instantiate()
+	main.persistence_enabled = false
 	root.add_child(main)
 	await process_frame
 	await process_frame
@@ -96,4 +97,3 @@ func drag_card(card: Control, destination: Vector2) -> void:
 	up.button_index = MOUSE_BUTTON_LEFT
 	root.push_input(up, true)
 	await process_frame
-

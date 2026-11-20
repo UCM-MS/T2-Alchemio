@@ -35,6 +35,7 @@ func run_checks() -> void:
 	var once: Dictionary = mixture.duplicate(true)
 	check(not demo.react(mixture) and mixture == once, "Product-containing mixture cannot rerun recipe")
 	var main = load("res://scenes/main.tscn").instantiate()
+	main.persistence_enabled = false
 	root.add_child(main)
 	await process_frame
 	await process_frame
