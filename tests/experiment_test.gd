@@ -1,0 +1,110 @@
+extends SceneTree
+const Experiment = preload("res://scripts/lab_experiment.gd")
+const Catalog = preload("res://scripts/catalog.gd")
+var failures: Array[String] = []
+var events: Array[String] = []
+
+func _initialize() -> void:
+	call_deferred("run_checks")
+
+func run_checks() -> void:
+	var demo = Experiment.new()
+	demo.process_changed.connect(func(id: String): events.append(id))
+	var water := {"water": 2}
+	demo.set_mode("heat", water)
+	demo.step(20, water)
+	check(demo.boiling and demo.temperature == 100, "Water reaches capped boiling temperature")
+	demo.step(1000, water)
+	check(demo.temperature == 100 and events == ["boiling"] and water == {"water":2}, "Boiling does not repeat notices or consume portions")
+	demo.set_mode("cool", water)
+	check(demo.mode == "cool", "Cooling replaces burner")
+	demo.step(0.1, water)
+	check(not demo.boiling and events == ["boiling","cooled"], "Cooling crosses boiling transition once")
+	demo.step(100, water)
+	check(demo.temperature == 20 and demo.mode == "off", "Cooling stops at reference temperature")
+	demo.set_mode("heat", {"water":1,"oxygen":1})
+	check(demo.mode == "off", "Unsupported mixture cannot heat")
+	for sample in [{}, {"methane":1}, {"methane":1,"oxygen":1}, {"methane":1,"oxygen":2,"water":1}]:
+		var before: Dictionary = sample.duplicate(true)
+		check(not demo.react(sample) and sample == before, "Invalid reaction leaves contents unchanged")
+	var mixture := {"methane":3,"oxygen":7}
+	var elements_before := atoms_in(mixture)
+	check(demo.react(mixture), "Supported reaction runs")
+	check(mixture == {"methane":2,"oxygen":5,"carbon_dioxide":1,"water":2}, "One batch consumes only stoichiometric amounts and retains excess")
+	check(atoms_in(mixture) == elements_before, "Reaction conserves H/O/C atoms")
+	var once: Dictionary = mixture.duplicate(true)
+	check(not demo.react(mixture) and mixture == once, "Product-containing mixture cannot rerun recipe")
+	var main = load("res://scenes/main.tscn").instantiate()
+	root.add_child(main)
+	await process_frame
+	await process_frame
+	main.collection_map.set_physics_process(false)
+	for id in 3:
+		main.collection_map.collect_atom(id)
+	main.finish_button.pressed.emit()
+	main.preview_page.board.connect_atoms(0,1,1)
+	main.preview_page.board.connect_atoms(2,1,1)
+	main.preview_page.finalize_assembly()
+	var lab = main.laboratory
+	lab.set_process(false)
+	lab.rows.water.button.pressed.emit()
+	lab.heat_button.button_pressed = true
+	lab.heat_button.pressed.emit()
+	lab.experiment.step(15, main.inventory.sample)
+	lab._update_experiment()
+	check(lab.heat_button.button_pressed and not lab.cool_button.button_pressed, "Only burner is active")
+	check(main.research.researched.is_empty() and main.inventory.sample == {"water":1}, "Physical process creates no discoveries or products")
+	await screenshot("a6-boiling")
+	lab._set_tool("cool")
+	lab.experiment.step(1, main.inventory.sample)
+	lab._update_experiment()
+	check(lab.cool_button.button_pressed and not lab.heat_button.button_pressed, "Only cooling is active")
+	await screenshot("a6-cooling")
+	lab.return_button.pressed.emit()
+	check(lab.experiment.mode == "off" and lab.experiment.temperature == 20, "Return resets experiment")
+	main.research.investigate({"water":1})
+	main.research.investigate({"oxygen":1})
+	main.inventory.credit({"methane":1,"oxygen":2})
+	lab.refresh()
+	lab.rows.methane.button.pressed.emit()
+	lab.rows.oxygen.button.pressed.emit()
+	check(lab.reaction_button.disabled, "Insufficient oxygen disables ignition")
+	lab.rows.oxygen.button.pressed.emit()
+	check(not lab.reaction_button.disabled and lab.heat_button.disabled, "Valid batch enables ignition separately from water heater")
+	await screenshot("a6-reaction-ready")
+	lab.reaction_button.pressed.emit()
+	check(main.inventory.sample == {"carbon_dioxide":1,"water":2}, "UI reaction produces correct sample")
+	check(main.research.researched.size() == 2, "Reaction does not auto-research products")
+	lab.reaction_button.pressed.emit()
+	check(main.inventory.sample == {"carbon_dioxide":1,"water":2}, "Repeated ignition does not duplicate products")
+	await screenshot("a6-reaction-result")
+	lab.new_collection_requested.emit()
+	await process_frame
+	check(main.inventory.stock.water == 3 and main.inventory.stock.carbon_dioxide == 1 and main.inventory.sample.is_empty(), "Leaving returns reaction products without recreating reactants")
+	check(lab.experiment.mode == "off", "Exit turns tools off")
+	main.queue_free()
+	await process_frame
+	for failure in failures:
+		push_error(failure)
+	if failures.is_empty():
+		print("A6 PASS: heating, capped boiling, cooling, transition notices, supported recipe, atom conservation, excess, invalid recipes, UI transfer and exit")
+	quit(0 if failures.is_empty() else 1)
+
+func atoms_in(sample: Dictionary) -> Dictionary:
+	var result := {"H":0,"O":0,"C":0}
+	for substance in Catalog.load_data().substances:
+		for symbol in substance.atoms:
+			result[symbol] += sample.get(substance.id,0)
+	return result
+
+func screenshot(filename: String) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	await process_frame
+	await process_frame
+	await RenderingServer.frame_post_draw
+	root.get_texture().get_image().save_png("res://artifacts/%s.png" % filename)
+
+func check(condition: bool, message: String) -> void:
+	if not condition:
+		failures.append(message)

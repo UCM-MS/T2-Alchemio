@@ -1,0 +1,419 @@
+{
+  "schema_version": 1,
+  "locale": "sk",
+  "elements": [
+    {
+      "id": "H",
+      "symbol": "H",
+      "name": "Vodík",
+      "atomic_number": 1,
+      "relative_atomic_mass": 1.008,
+      "mass_uncertainty": 0.0002,
+      "group": 1,
+      "period": 1,
+      "available_at_start": true,
+      "color": "c8e9f2",
+      "source": "https://www.ciaaw.org/abridged-atomic-weights.htm"
+    },
+    {
+      "id": "O",
+      "symbol": "O",
+      "name": "Kyslík",
+      "atomic_number": 8,
+      "relative_atomic_mass": 15.999,
+      "mass_uncertainty": 0.001,
+      "group": 16,
+      "period": 2,
+      "available_at_start": true,
+      "color": "ff8a80",
+      "source": "https://www.ciaaw.org/abridged-atomic-weights.htm"
+    },
+    {
+      "id": "C",
+      "symbol": "C",
+      "name": "Uhlík",
+      "atomic_number": 6,
+      "relative_atomic_mass": 12.011,
+      "mass_uncertainty": 0.002,
+      "group": 14,
+      "period": 2,
+      "available_at_start": false,
+      "color": "a5b4cb",
+      "source": "https://www.ciaaw.org/abridged-atomic-weights.htm"
+    }
+  ],
+  "substances": [
+    {
+      "id": "hydrogen",
+      "name": "Vodík",
+      "formula": "H2",
+      "display_formula": "H₂",
+      "atoms": [
+        "H",
+        "H"
+      ],
+      "bonds": [
+        [
+          0,
+          1,
+          1
+        ]
+      ],
+      "state_at_room_conditions": "gas",
+      "fact": "Molekula vodíka H₂ obsahuje dva atómy vodíka.",
+      "source": "https://webbook.nist.gov/cgi/cbook.cgi?ID=C1333740&Units=SI",
+      "model": "H–H"
+    },
+    {
+      "id": "oxygen",
+      "name": "Kyslík",
+      "formula": "O2",
+      "display_formula": "O₂",
+      "atoms": [
+        "O",
+        "O"
+      ],
+      "bonds": [
+        [
+          0,
+          1,
+          2
+        ]
+      ],
+      "state_at_room_conditions": "gas",
+      "fact": "Molekula kyslíka O₂ obsahuje dva atómy kyslíka. Nie je to jeden atóm O.",
+      "source": "https://webbook.nist.gov/cgi/cbook.cgi?ID=C7782447&Units=SI",
+      "model": "O=O"
+    },
+    {
+      "id": "water",
+      "name": "Voda",
+      "formula": "H2O",
+      "display_formula": "H₂O",
+      "atoms": [
+        "O",
+        "H",
+        "H"
+      ],
+      "bonds": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          0,
+          2,
+          1
+        ]
+      ],
+      "state_at_room_conditions": "liquid",
+      "fact": "V molekule vody sú dva atómy vodíka viazané na jeden atóm kyslíka.",
+      "source": "https://pubchem.ncbi.nlm.nih.gov/compound/WATER",
+      "model": "H–O–H"
+    },
+    {
+      "id": "carbon_dioxide",
+      "name": "Oxid uhličitý",
+      "formula": "CO2",
+      "display_formula": "CO₂",
+      "atoms": [
+        "C",
+        "O",
+        "O"
+      ],
+      "bonds": [
+        [
+          0,
+          1,
+          2
+        ],
+        [
+          0,
+          2,
+          2
+        ]
+      ],
+      "state_at_room_conditions": "gas",
+      "fact": "Molekula CO₂ obsahuje jeden atóm uhlíka a dva atómy kyslíka.",
+      "source": "https://webbook.nist.gov/cgi/cbook.cgi?ID=C124389&Units=SI",
+      "model": "O=C=O"
+    },
+    {
+      "id": "carbon_monoxide",
+      "name": "Oxid uhoľnatý",
+      "formula": "CO",
+      "display_formula": "CO",
+      "atoms": [
+        "C",
+        "O"
+      ],
+      "bonds": [
+        [
+          0,
+          1,
+          3
+        ]
+      ],
+      "formal_charges": [
+        -1,
+        1
+      ],
+      "model": "⁻C≡O⁺",
+      "state_at_room_conditions": "gas",
+      "fact": "CO obsahuje jeden atóm C a jeden O. Lewisov model má trojitú väzbu a formálne náboje C −1, O +1; celá molekula je neutrálna.",
+      "source": "https://webbook.nist.gov/cgi/cbook.cgi?ID=C630080&Units=SI"
+    },
+    {
+      "id": "methane",
+      "name": "Metán",
+      "formula": "CH4",
+      "display_formula": "CH₄",
+      "atoms": [
+        "C",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "bonds": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          0,
+          3,
+          1
+        ],
+        [
+          0,
+          4,
+          1
+        ]
+      ],
+      "model": "C so štyrmi jednoduchými väzbami C–H",
+      "state_at_room_conditions": "gas",
+      "fact": "Metán má jeden atóm uhlíka viazaný na štyri atómy vodíka.",
+      "source": "https://webbook.nist.gov/cgi/cbook.cgi?ID=C74828&Units=SI"
+    },
+    {
+      "id": "methanol",
+      "name": "Metanol",
+      "formula": "CH4O",
+      "display_formula": "CH₃OH",
+      "atoms": [
+        "C",
+        "O",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "bonds": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          0,
+          3,
+          1
+        ],
+        [
+          0,
+          4,
+          1
+        ],
+        [
+          1,
+          5,
+          1
+        ]
+      ],
+      "model": "CH₃–O–H (všetky H sú v skladaní samostatné atómy)",
+      "state_at_room_conditions": "liquid",
+      "fact": "Metanol obsahuje skupinu –OH pripojenú k jednému uhlíku.",
+      "source": "https://webbook.nist.gov/cgi/cbook.cgi?ID=C67561&Units=SI"
+    },
+    {
+      "id": "ethanol",
+      "name": "Etanol",
+      "formula": "C2H6O",
+      "display_formula": "C₂H₅OH",
+      "atoms": [
+        "C",
+        "C",
+        "O",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "bonds": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          0,
+          3,
+          1
+        ],
+        [
+          0,
+          4,
+          1
+        ],
+        [
+          0,
+          5,
+          1
+        ],
+        [
+          1,
+          6,
+          1
+        ],
+        [
+          1,
+          7,
+          1
+        ],
+        [
+          2,
+          8,
+          1
+        ]
+      ],
+      "model": "CH₃–CH₂–O–H (všetky H sú samostatné atómy)",
+      "state_at_room_conditions": "liquid",
+      "fact": "Etanol má dva spojené uhlíky a skupinu –OH. Samotný molekulový vzorec neurčuje rozloženie väzieb.",
+      "source": "https://webbook.nist.gov/cgi/cbook.cgi?ID=C64175&Units=SI"
+    },
+    {
+      "id": "formic_acid",
+      "name": "Kyselina mravčia",
+      "formula": "CH2O2",
+      "display_formula": "HCOOH",
+      "atoms": [
+        "C",
+        "O",
+        "O",
+        "H",
+        "H"
+      ],
+      "bonds": [
+        [
+          0,
+          1,
+          2
+        ],
+        [
+          0,
+          2,
+          1
+        ],
+        [
+          0,
+          3,
+          1
+        ],
+        [
+          2,
+          4,
+          1
+        ]
+      ],
+      "model": "H–C(=O)–O–H",
+      "state_at_room_conditions": "liquid",
+      "fact": "Kyselina mravčia obsahuje skupinu –C(=O)–OH a jeden atóm uhlíka.",
+      "source": "https://webbook.nist.gov/cgi/cbook.cgi?ID=C64186&Units=SI"
+    },
+    {
+      "id": "acetic_acid",
+      "name": "Kyselina octová",
+      "formula": "C2H4O2",
+      "display_formula": "CH₃COOH",
+      "atoms": [
+        "C",
+        "C",
+        "O",
+        "O",
+        "H",
+        "H",
+        "H",
+        "H"
+      ],
+      "bonds": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          1,
+          2,
+          2
+        ],
+        [
+          1,
+          3,
+          1
+        ],
+        [
+          0,
+          4,
+          1
+        ],
+        [
+          0,
+          5,
+          1
+        ],
+        [
+          0,
+          6,
+          1
+        ],
+        [
+          3,
+          7,
+          1
+        ]
+      ],
+      "model": "CH₃–C(=O)–O–H (tri H sú viazané na prvý C)",
+      "state_at_room_conditions": "liquid",
+      "fact": "Kyselina octová má dva atómy uhlíka a skupinu –C(=O)–OH.",
+      "source": "https://webbook.nist.gov/cgi/cbook.cgi?ID=C64197&Units=SI"
+    }
+  ],
+  "progression": {
+    "unique_research_to_unlock_carbon": 2,
+    "next_element": "C"
+  },
+  "collection": {
+    "capacity": 12
+  },
+  "model_note": "Stavba modelu molekuly nie je návod na chemickú syntézu."
+}
