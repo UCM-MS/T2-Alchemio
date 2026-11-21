@@ -13,8 +13,11 @@ var dragging := -1
 var drag_origin := Vector2.ZERO
 var drag_offset := Vector2.ZERO
 var recognized: Array = []
+var element_colors := {}
 
 func _ready() -> void:
+	for element in AlphaCatalog.load_data().elements:
+		element_colors[element.symbol] = Color(element.color)
 	custom_minimum_size = Vector2(600, 300)
 	clip_contents = true
 	focus_mode = Control.FOCUS_ALL
@@ -173,7 +176,7 @@ func _draw() -> void:
 		draw_string(FONT, Vector2(origin.x - 20, maxf(22, origin.y - 38)), group.substance.display_formula, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, Color("7ed9c3"))
 	for id in graph.atoms:
 		var symbol: String = graph.atoms[id]["element"]
-		var tint := Color({"H": "c8e9f2", "O": "ff8a80", "C": "a5b4cb"}.get(symbol, "ffffff"))
+		var tint: Color = element_colors.get(symbol, Color.WHITE)
 		symbol = formal_symbols.get(id, symbol)
 		var point: Vector2 = positions[id]
 		draw_circle(point, RADIUS, tint.darkened(0.8))

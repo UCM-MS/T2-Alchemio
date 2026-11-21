@@ -44,31 +44,35 @@ Pri ďalšom zbere skús spojiť dva atómy O väzbou **Dvojitá**. Po objavení
 
 ### Čo sa uloží po skončení hry?
 
-Hra automaticky ukladá objavy a zásobu látok. Po opätovnom spustení s uloženým postupom sa otvorí laboratórium. Porcie z banky nájdeš späť v zásobe. Rozpracovaný zber a rozostavané molekuly sa po ukončení hry stratia. Ak chceš začať úplne odznova, vyber **Nová hra** a potvrď vymazanie postupu.
+Hra automaticky ukladá objavy a zásobu látok. Po opätovnom spustení s uloženým postupom sa otvorí laboratórium. Porcie z prístroja aj neodobraté plyny z výstupov nájdeš späť v zásobe. Rozpracovaný zber a rozostavané molekuly sa po ukončení hry stratia. Ak chceš začať úplne odznova, vyber **Nová hra** a potvrď vymazanie postupu.
 
 Vo webovej verzii sa postup ukladá v prehliadači. Ak chceš pokračovať, použi rovnaký profil aj adresu vrátane portu. V súkromnom okne môže postup po zatvorení okna zaniknúť.
 
 ## Stav vývoja
 
-**Hrateľná alfa A8, stav k 21. novembru 2026.** Technická časť alfy je dokončená. Záverečné skúšobné hranie aktuálnej verzie ešte čaká na vyhodnotenie.
+**Posledné vydanie je alfa A8.** V pracovnej verzii sa po dvoch rôznych objavoch odomkne uhlík a po štyroch dusík. Atómy nového prvku sa objavia pri ďalšom zbere. Hráč so štyrmi alebo viacerými objavmi z A8 má po načítaní dusík už odomknutý.
+
+Pracovná verzia načíta uloženú hru z A8. Pri ďalšom uložení zapíše formát 2 s rozšíreným katalógom látok. Ak chceš v tejto hre pokračovať, použi pracovnú verziu.
 
 **Čo už funguje**
 
-- Zber troch prvkov (H, O, C), skladanie 10 modelov molekúl a automatické ukladanie zbierky aj zásoby látok.
-- Ohrev a chladenie vody a model úplného spaľovania metánu. Produkty reakcie sa automaticky pridajú medzi objavené látky.
+- V pracovnej verzii môžeš zbierať štyri prvky (H, O, C, N) a zostaviť 12 modelov molekúl. Pre N₂ spoj dva atómy dusíka trojitou väzbou. Pre NH₃ pripoj k jednému atómu dusíka tri atómy vodíka, každý jednoduchou väzbou. Obe látky sa uložia do zbierky. Po dokončení skladania môžeš ich porcie preniesť do banky.
+- V ponuke **Prístroj** môžeš porovnať var vody s elektrolýzou. V banke zostáva voda pri vare vodou. V elektrolyzéri vlož dve porcie H₂O a zvoľ **Zapnúť prúd**. Kliknutím na jednotlivé výstupy si odoberieš dve porcie H₂ a jednu porciu O₂.
+- V banke s ohrevom môžeš skúmať úplné spaľovanie metánu. Po odomknutí dusíka sa sprístupní aj **Reaktor na syntézu amoniaku**. Vlož jednu porciu N₂ a tri porcie H₂ a zvoľ **Spustiť syntézu**. Jeden krok modelu vytvorí dve porcie NH₃. Nové produkty sa pridajú do kolekcie hneď pri reakcii.
 - Slovenské rozhranie s nápovedou v každej fáze hry a webová verzia pre počítače s klávesnicou a myšou.
 
 **Čo je v pláne**
 
+- Pred vydaním Beta 0.1 overiť celý postup vo webovej verzii s novou aj uloženou hrou a pripraviť balík pre hráčov.
 - Overiť so žiakmi, či dokážu samostatne prejsť od zberu po pokus v laboratóriu, a podľa ich spätnej väzby upraviť ovládanie a nápovedu.
 - S učiteľom chémie skontrolovať správnosť a zrozumiteľnosť vysvetlení.
 - Ak zvýši čas, pridať krátke zvuky pri zbere atómu a objavení látky.
 
-Laboratórium pracuje s vybranými školskými modelmi. Pri reakcii CH₄ + 2 O₂ → CO₂ + 2 H₂O používa hra vlastný prah ohrevu 300 °C. Táto hodnota slúži výhradne ako herná podmienka. Podrobnosti o rozsahu alfy a skúšobnom hraní sú v [poznámkach k vydaniu (po rusky)](docs/ALPHA_RELEASE.md).
+Laboratórium pracuje s vybranými školskými modelmi. Pri reakcii CH₄ + 2 O₂ → CO₂ + 2 H₂O používa hra vlastný prah ohrevu 300 °C. Táto hodnota slúži výhradne ako herná podmienka.
 
 ## Zdroje a licencie
 
-- **Chemické údaje.** Atómové hmotnosti vychádzajú z tabuliek CIAAW. Vzorce a štruktúry molekúl boli overené podľa NIST Chemistry WebBook a PubChem. Vysvetlenia väzieb, varu a chemických rovníc vychádzajú z Chemistry LibreTexts a OpenStax Chemistry 2e. [Zdroje ku konkrétnym látkam a pokusom (po rusky)](docs/CHEMISTRY_SOURCES.md)
+- **Chemické údaje.** Atómové hmotnosti vychádzajú z tabuliek CIAAW. Vzorce a štruktúry molekúl boli overené podľa NIST Chemistry WebBook a PubChem. Vysvetlenia väzieb, varu a chemických rovníc vychádzajú z Chemistry LibreTexts a OpenStax Chemistry 2e. [Tabuľky CIAAW](https://ciaaw.org/abridged-atomic-weights.htm) · [Zdroje pri jednotlivých látkach v katalógu hry](data/catalog.json) · [OpenStax o skupenských premenách](https://openstax.org/books/chemistry-2e/pages/10-3-phase-transitions)
 - **Godot Engine** je vydaný pod licenciou MIT. [Licencia Godot Engine](https://godotengine.org/license/)
 - **Ikona projektu** používa logo Godot (© 2017 Andrea Calabró) pod licenciou CC BY 4.0. [Logo Godot](https://godotengine.org/press/) · [Licencia CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 - **Písmo Noto Sans** od The Noto Project Authors sa používa podľa licencie SIL Open Font License 1.1. [Priložený text licencie](assets/fonts/OFL.txt)

@@ -34,8 +34,7 @@ func _ready() -> void:
 	if loaded.has("data"):
 		inventory.stock = loaded.data.inventory
 		research.researched = loaded.data.researched
-		if loaded.data.carbon:
-			research.available_elements.append("C")
+		research.available_elements = loaded.data.available_elements
 	var hud := CanvasLayer.new()
 	hud.layer = 10
 	add_child(hud)
@@ -230,14 +229,15 @@ func _discover_assembly() -> void:
 
 func _discover_products(products: Dictionary) -> void:
 	var changed := false
-	var had_carbon: bool = "C" in research.available_elements
-	for substance in AlphaCatalog.load_data().substances:
+	var previously_available: Array[String] = research.available_elements.duplicate()
+	for substance in research.catalog.substances:
 		if products.get(substance.id, 0) > 0 and research.discover(substance.id):
 			changed = true
 			discovery_notice.enqueue("Nová látka objavená!\n%s · %s\nPridaná do kolekcie." % [substance.display_formula,substance.name], substance.id)
-	if not had_carbon and "C" in research.available_elements:
-		discovery_notice.enqueue("Nový prvok · %d/%d\nObjavil si dve rôzne látky." % [research.threshold(),research.threshold()])
-		discovery_notice.enqueue("Nový prvok: C · Uhlík\nDostupný pri ďalšom zbere. Podrobnosti nájdeš v kolekcii.", "C")
+	for element in research.catalog.elements:
+		if element.id in research.available_elements and element.id not in previously_available:
+			discovery_notice.enqueue("Nový prvok · počet potrebných objavov: %d" % int(element.discoveries_required))
+			discovery_notice.enqueue("Nový prvok: %s · %s\nDostupný pri ďalšom zbere. Podrobnosti nájdeš v kolekcii." % [element.symbol, element.name], element.id)
 	if changed:
 		laboratory.refresh()
 		_save_progress()
@@ -286,12 +286,13 @@ func _new_collection() -> void:
 	_save_progress()
 
 func _update_cargo(atoms: Array[Dictionary], capacity: int) -> void:
-	var counts := {"H": 0, "O": 0, "C": 0}
+	var counts := {}
 	for atom in atoms:
-		counts[atom["element"]] += 1
-	cargo_label.text = "H  %d    O  %d     |     %d / %d" % [counts.H, counts.O, atoms.size(), capacity]
-	if "C" in research.available_elements:
-		cargo_label.text = "H %d  O %d  C %d  |  %d / %d" % [counts.H, counts.O, counts.C, atoms.size(), capacity]
+		counts[atom.element] = counts.get(atom.element, 0) + 1
+	var parts := PackedStringArray()
+	for symbol in collection_map.available_elements:
+		parts.append("%s %d" % [symbol, counts.get(symbol, 0)])
+	cargo_label.text = "%s  |  %d / %d" % ["  ".join(parts), atoms.size(), capacity]
 	finish_button.disabled = atoms.is_empty()
 	hint_label.text = "WASD / šípky · Zbieraj atómy dotykom, potom zvoľ K skladaniu.\nTyčky sú uchytenia, nie chemické väzby."
 	if atoms.size() >= capacity:

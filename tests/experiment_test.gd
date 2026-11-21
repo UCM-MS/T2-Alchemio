@@ -8,6 +8,7 @@ func _initialize() -> void:
 	call_deferred("run_checks")
 
 func run_checks() -> void:
+	check_device_rules()
 	var demo = Experiment.new()
 	demo.process_changed.connect(func(id: String): events.append(id))
 	var water := {"water": 2}
@@ -129,11 +130,46 @@ func run_checks() -> void:
 		print("A6 PASS: heating, capped boiling, cooling, transition notices, supported recipe, atom conservation, excess, invalid recipes, UI transfer and exit")
 	quit(0 if failures.is_empty() else 1)
 
+func check_device_rules() -> void:
+	for id in ["electrolyzer", "reactor"]:
+		var demo = Experiment.new()
+		demo.instrument = id
+		var inputs: Dictionary = {"water": 2} if id == "electrolyzer" else {"nitrogen": 1, "hydrogen": 3}
+		var products: Dictionary = {"hydrogen": 2, "oxygen": 1} if id == "electrolyzer" else {"ammonia": 2}
+		var trigger := "current" if id == "electrolyzer" else "synthesis"
+		var wrong := "synthesis" if id == "electrolyzer" else "current"
+		var outlets := {}
+		var sample := inputs.duplicate()
+		demo.set_mode("heat", sample)
+		demo.step(60, sample)
+		check(sample == inputs and not demo.react(sample, wrong, outlets), "Wrong action leaves inputs intact: " + id)
+		for key in inputs:
+			var short_sample := inputs.duplicate()
+			short_sample[key] -= 1
+			var before := short_sample.duplicate()
+			check(not demo.react(short_sample, trigger, outlets) and short_sample == before and outlets.is_empty(), "Shortage rejected: " + key)
+		var impure := inputs.duplicate()
+		impure.methane = 1
+		var before_impure := impure.duplicate()
+		check(not demo.react(impure, trigger, outlets) and impure == before_impure and outlets.is_empty(), "Impurity rejected: " + id)
+		var extra: String = inputs.keys()[0]
+		sample[extra] += 1
+		var atoms_before := atoms_in(sample)
+		check(demo.react(sample, trigger, outlets), "Run one batch: " + id)
+		var total := sample.duplicate()
+		total.merge(outlets)
+		check(atoms_in(total) == atoms_before and sample[extra] == 1, "Conserve atoms and excess: " + id)
+		for key in products:
+			check(total.get(key, 0) == products[key], "Correct product yield: " + key)
+		var sample_after := sample.duplicate()
+		var outlets_after := outlets.duplicate()
+		check(not demo.react(sample, trigger, outlets) and sample == sample_after and outlets == outlets_after, "Repeated action cannot replay the batch: " + id)
+
 func atoms_in(sample: Dictionary) -> Dictionary:
-	var result := {"H":0,"O":0,"C":0}
+	var result := {}
 	for substance in Catalog.load_data().substances:
 		for symbol in substance.atoms:
-			result[symbol] += sample.get(substance.id,0)
+			result[symbol] = result.get(symbol, 0) + sample.get(substance.id, 0)
 	return result
 
 func screenshot(filename: String) -> void:

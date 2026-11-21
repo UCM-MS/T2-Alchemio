@@ -11,7 +11,7 @@
       "mass_uncertainty": 0.0002,
       "group": 1,
       "period": 1,
-      "available_at_start": true,
+      "discoveries_required": 0,
       "color": "c8e9f2",
       "source": "https://www.ciaaw.org/abridged-atomic-weights.htm"
     },
@@ -24,7 +24,7 @@
       "mass_uncertainty": 0.001,
       "group": 16,
       "period": 2,
-      "available_at_start": true,
+      "discoveries_required": 0,
       "color": "ff8a80",
       "source": "https://www.ciaaw.org/abridged-atomic-weights.htm"
     },
@@ -37,8 +37,21 @@
       "mass_uncertainty": 0.002,
       "group": 14,
       "period": 2,
-      "available_at_start": false,
+      "discoveries_required": 2,
       "color": "a5b4cb",
+      "source": "https://www.ciaaw.org/abridged-atomic-weights.htm"
+    },
+    {
+      "id": "N",
+      "symbol": "N",
+      "name": "Dusík",
+      "atomic_number": 7,
+      "relative_atomic_mass": 14.007,
+      "mass_uncertainty": 0.001,
+      "group": 15,
+      "period": 2,
+      "discoveries_required": 4,
+      "color": "87acff",
       "source": "https://www.ciaaw.org/abridged-atomic-weights.htm"
     }
   ],
@@ -406,11 +419,65 @@
       "state_at_room_conditions": "liquid",
       "fact": "Kyselina octová má dva atómy uhlíka a skupinu –C(=O)–OH.",
       "source": "https://webbook.nist.gov/cgi/cbook.cgi?ID=C64197&Units=SI"
+    },
+    {
+      "id": "nitrogen",
+      "name": "Dusík",
+      "formula": "N2",
+      "display_formula": "N₂",
+      "atoms": ["N", "N"],
+      "bonds": [[0, 1, 3]],
+      "model": "N≡N",
+      "state_at_room_conditions": "gas",
+      "fact": "Molekulu dusíka tvoria dva atómy spojené trojitou väzbou.",
+      "source": "https://openstax.org/books/microbiology/pages/8-7-biogeochemical-cycles"
+    },
+    {
+      "id": "ammonia",
+      "name": "Amoniak",
+      "formula": "NH3",
+      "display_formula": "NH₃",
+      "atoms": ["N", "H", "H", "H"],
+      "bonds": [[0, 1, 1], [0, 2, 1], [0, 3, 1]],
+      "model": "Tri jednoduché väzby N–H",
+      "state_at_room_conditions": "gas",
+      "fact": "V molekule amoniaku je každý z troch atómov vodíka spojený s atómom dusíka jednou jednoduchou väzbou.",
+      "source": "https://openstax.org/books/chemistry-atoms-first-2e/pages/18-5-occurrence-preparation-and-compounds-of-hydrogen"
     }
   ],
-  "progression": {
-    "unique_research_to_unlock_carbon": 2,
-    "next_element": "C"
+  "reactions": {
+    "flask": {
+      "id": "combustion",
+      "instrument_name": "Banka s ohrevom",
+      "reactants": {"methane": 1, "oxygen": 2},
+      "products": {"carbon_dioxide": 1, "water": 2},
+      "trigger": "heat",
+      "temperature": 300,
+      "explanation": "Pri úplnom spaľovaní metánu vznikajú oxid uhličitý a voda. Ohrev sa vypol, produkty môžeš ochladiť."
+    },
+    "electrolyzer": {
+      "id": "electrolysis",
+      "instrument_name": "Elektrolyzér",
+      "reactants": {"water": 2},
+      "products": {"hydrogen": 2, "oxygen": 1},
+      "trigger": "current",
+      "action": "Zapnúť prúd",
+      "separate_outputs": true,
+      "condition": "Elektrický prúd rozkladá vodu. Každý plyn má vlastný výstup.",
+      "explanation": "Z vody vznikli dva plyny. Kliknutím na výstup presunieš príslušný plyn do zásoby."
+    },
+    "reactor": {
+      "id": "ammonia_synthesis",
+      "instrument_name": "Reaktor na syntézu amoniaku",
+      "requires_element": "N",
+      "reactants": {"nitrogen": 1, "hydrogen": 3},
+      "products": {"ammonia": 2},
+      "trigger": "synthesis",
+      "action": "Spustiť syntézu",
+      "reversible": true,
+      "condition": "Model priemyselného reaktora so zvýšeným tlakom, ohrevom a katalyzátorom.",
+      "explanation": "Šípky označujú oba smery reakcie. Hra ukazuje jeden krok tvorby amoniaku. Skutočný výťažok závisí od rovnováhy."
+    }
   },
   "collection": {
     "capacity": 12

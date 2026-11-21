@@ -17,3 +17,10 @@ static func load_data() -> Dictionary:
 		push_error("Catalog root must be a dictionary")
 		return {}
 	return parser.data
+
+static func unlocked_elements(elements: Array, discovery_count: int) -> Array[String]:
+	var result: Array[String] = []
+	for element in elements:
+		if discovery_count >= int(element.discoveries_required):
+			result.append(element.id)
+	return result

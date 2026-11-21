@@ -3,6 +3,7 @@ extends RefCounted
 const Catalog = preload("res://scripts/catalog.gd")
 var stock: Dictionary = {}
 var sample: Dictionary = {}
+var outlets: Dictionary = {}
 
 func _init() -> void:
 	for substance in Catalog.load_data().substances:
@@ -24,3 +25,12 @@ func add_to_sample(id: String) -> bool:
 func return_sample() -> void:
 	credit(sample)
 	sample.clear()
+	credit(outlets)
+	outlets.clear()
+
+func collect_outlet(id: String) -> bool:
+	if not outlets.has(id):
+		return false
+	stock[id] += outlets[id]
+	outlets.erase(id)
+	return true

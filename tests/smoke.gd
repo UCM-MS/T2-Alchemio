@@ -6,9 +6,9 @@ var failures: Array[String] = []
 func _initialize() -> void:
 	var data := Catalog.load_data()
 	check(data.get("schema_version") == 1, "Catalog schema")
-	check(data.get("elements", []).size() == 3, "Three elements")
-	check(data.get("substances", []).size() == 10, "Ten substances")
-	var valences := {"H": 1, "O": 2, "C": 4}
+	check(data.get("elements", []).size() == 4, "Four elements including nitrogen")
+	check(data.get("substances", []).size() == 12, "Twelve substances")
+	var valences := {"H": 1, "O": 2, "C": 4, "N": 3}
 	var ids: Array[String] = []
 	for substance in data.get("substances", []):
 		check(not ids.has(substance["id"]), "Unique substance ID")

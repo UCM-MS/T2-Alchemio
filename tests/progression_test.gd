@@ -12,7 +12,7 @@ func run_checks() -> void:
 	var data: Dictionary = Catalog.load_data()
 	for template in data.substances:
 		var graph = Graph.new()
-		graph.configure_elements(["H", "O", "C"])
+		graph.configure_elements(["H", "O", "C", "N"])
 		var records: Array[Dictionary] = []
 		for i in template.atoms.size():
 			records.push_front({"id": 100 - i * 3, "element": template.atoms[i]})
@@ -21,6 +21,17 @@ func run_checks() -> void:
 			graph.set_bond(100 - int(bond[0]) * 3, 100 - int(bond[1]) * 3, int(bond[2]))
 		check(graph.preview().products == {template.id: 1}, "Recognize permuted " + template.id)
 		var first_bond: Array = template.bonds[0]
+		if "N" in template.atoms:
+			graph.configure_elements(["H", "O", "C"])
+			check(graph.preview().products.is_empty(), "Nitrogen model locked before fourth discovery")
+			graph.configure_elements(["H", "O", "C", "N"])
+			graph.set_bond(100, 97, 2)
+			check(graph.preview().products.is_empty(), "Reject incorrect bond order in " + template.id)
+			graph.set_bond(100, 97, int(first_bond[2]))
+			graph.add_atoms([{"id": 200, "element": "H"}])
+			graph.set_bond(100, 200, 1)
+			check(graph.preview().products.is_empty(), "Reject extra bonded atom in " + template.id)
+			graph.remove_bond(graph.edge_key(100, 200))
 		graph.remove_bond(graph.edge_key(100 - int(first_bond[0]) * 3, 100 - int(first_bond[1]) * 3))
 		check(not graph.preview().products.has(template.id), "Reject incomplete " + template.id)
 		check(template.atoms.size() <= data.collection.capacity, "Template fits capacity: " + template.id)
@@ -62,6 +73,7 @@ func run_checks() -> void:
 	main.preview_page.finalize_assembly()
 	var lab = main.laboratory
 	check(unlocks == ["C"], "Two assembled substances unlock C without a research button")
+	check(lab.progress_bar.visible and lab.progress_label.text.ends_with("0/2"), "Carbon starts a second progress interval")
 	check(main.discovery_notice.visible and main.discovery_notice.pending.size() == 3, "Notices queue substances, progress, then element")
 	check(not lab.discovery.visible, "Automatic notice is non-modal")
 	await screenshot("automatic-discoveries")
@@ -73,7 +85,9 @@ func run_checks() -> void:
 		lab.new_collection_requested.emit()
 		await process_frame
 		main.collection_map.set_physics_process(false)
-		check(main.collection_map.free_atoms.size() == 72, "Unlocked map guarantees carbon and H/O")
+		var had_nitrogen: bool = "N" in main.research.available_elements
+		var expected_atoms := 96 if had_nitrogen else 72
+		check(main.collection_map.free_atoms.size() == expected_atoms, "Cycle starts with 24 atoms of each unlocked element")
 		var records: Array[Dictionary] = []
 		for symbol in template.atoms:
 			for id in main.collection_map.free_atoms.keys():
@@ -96,23 +110,45 @@ func run_checks() -> void:
 		if template.id == "carbon_monoxide":
 			await screenshot("a5-triple-bond")
 		main.preview_page.finalize_assembly()
+		if main.research.researched.size() == 3:
+			check(lab.progress_label.text.ends_with("1/2"), "Third discovery counts toward nitrogen")
+		if not had_nitrogen and "N" in main.research.available_elements:
+			check(main.research.researched.size() == 4 and "N" not in main.collection_map.available_elements, "Fourth discovery unlocks nitrogen for the next map")
+			check(main.discovery_notice.pending.filter(func(item): return item.id == "N").size() == 1, "Nitrogen card queued exactly once")
 		check(main.inventory.stock[template.id] == 1, "Inventory receives " + template.id)
 		lab.rows[template.id].button.pressed.emit()
 		lab.research_button.pressed.emit()
 		check(main.research.researched.has(template.id), "Can research " + template.id)
 		lab.discovery.hide()
 		lab.return_button.pressed.emit()
-	check(unlocks == ["C"] and not lab.progress_bar.visible, "No fictitious next threshold")
+	check(unlocks == ["C", "N"] and not lab.progress_bar.visible, "Both elements unlock once and the final progress bar is hidden")
 	await screenshot("a5-laboratory")
 	lab.collection_button.pressed.emit()
 	await screenshot("a5-collection")
 	lab.discovery.hide()
+	lab.discovery.show_element("N")
+	check(lab.discovery.current_id == "N", "Nitrogen card can be opened in the collection")
+	lab.discovery.hide()
+	lab.new_collection_requested.emit()
+	check(main.collection_map.collect_atom(72) and main.cargo_label.text.contains("N 1"), "Nitrogen can be picked up and counted")
+	main.finish_button.pressed.emit()
+	check(main.preview_page.board.graph.atoms[72].element == "N", "Nitrogen is handed off to assembly")
+	main._reset_game()
+	main._discover_products({"water": 1})
+	main.discovery_notice.clear()
+	main._discover_products({"oxygen": 1, "hydrogen": 2})
+	check(main.discovery_notice.current_id == "hydrogen" and main.discovery_notice.pending.map(func(item): return item.id) == ["oxygen", "", "C"], "Two new products queue both cards, milestone and carbon in order")
+	check(lab.progress_label.text.ends_with("1/2") and main.research.researched.size() == 3, "Batch carries the third distinct discovery toward nitrogen")
+	main.discovery_notice.clear()
+	main._discover_products({"methane": 1})
+	main._discover_products({"methane": 1})
+	check(main.discovery_notice.pending.map(func(item): return item.id) == ["", "N"], "Repeat product does not enqueue another nitrogen card")
 	main.queue_free()
 	await process_frame
 	for failure in failures:
 		push_error(failure)
 	if failures.is_empty():
-		print("A5 PASS: all 10 structures, isomer rejection, hidden element, unique unlock, card queue, alternate pair, seven carbon collection/assembly/research cycles")
+		print("Progression PASS: 12 structures, nitrogen gating and bond validation, unlocks, queue and carbon collection cycles")
 	quit(0 if failures.is_empty() else 1)
 
 func screenshot(filename: String) -> void:

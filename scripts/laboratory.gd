@@ -13,6 +13,9 @@ const Experiment = preload("res://scripts/lab_experiment.gd")
 var experiment = Experiment.new()
 var heat_button: Button
 var cool_button: Button
+var instrument_select: OptionButton
+var run_button: Button
+var outlet_buttons := {}
 var temperature_label: Label
 var process_notice: Label
 var animation_time := 0.0
@@ -63,7 +66,13 @@ func _ready() -> void:
 	help_dialog = HelpDialog.new()
 	var dialog = help_dialog
 	add_child(dialog)
-	help.pressed.connect(func(): dialog.open("Ako používať laboratórium", "ZÁSOBA A OBJAVY\nPotiahni kartu na banku alebo klikni: pridá sa jedna porcia. Pustenie mimo nič neminie.\nNová látka sa otvorí hneď pri správnej stavbe modelu alebo pri vzniku v reakcii.\nObjavy sa automaticky pridajú do kolekcie. Dva rôzne objavy otvoria nový prvok.\n\nTEPELNÝ POKUS\nNahriať a Ochladiť fungujú pre každú neprázdnu vzorku. Čistá voda vrie v modeli pri 1 atm a 100 °C.\nPrístroje sa navzájom vypínajú. Bez horáka voda pomaly chladne k 20 °C.\nTeplota ostatných vzoriek je schematická (20–600 °C); úplné fázové prechody nemodelujeme.\n\nREAKCIA\nPri ohreve na herný prah 300 °C sa spustí jedna dávka CH₄ + 2 O₂ -> CO₂ + 2 H₂O, bez prímesí.\nPorcie znamenajú rovnaké relatívne počty častíc, nie rovnakú hmotnosť.\n300 °C je podmienka hry, nie reálna zápalná teplota. Produkty ostanú horúce; uvoľnené teplo nesimulujeme.\n\nVRÁTENIE A ULOŽENIE\nVrátiť obsah aj nový zber vrátia aktuálne porcie. Reakcia neobnoví spotrebované reagenty.\nZmena vzorky resetuje tepelný pokus na 20 °C. Je to reset modelu, nie návrat uniknutej pary.\nPlyny označuje text, nie farebná kvapalina. Zásoba a objavy sa ukladajú automaticky; obsah banky sa po načítaní vráti do zásoby.\nRozpracovaný zber a skladanie sa neukladajú. Nová hra vymaže pokrok až po potvrdení."))
+	help.pressed.connect(func(): dialog.open("Ako používať laboratórium", "\n\n".join([
+		"VZORKA\nVyber prístroj. Klikni na kartu látky alebo ju presuň na obrázok prístroja. Jedna karta pridá jednu porciu. Pri zmene prístroja sa vložená vzorka prenesie a plyny z výstupov sa vrátia do zásoby.",
+		"BANKA S OHREVOM\nČistá voda pri tlaku 1 atm vrie približne pri 100 °C. Pri ochladení var prestane a voda zostane vodou. Pri zmesi metánu a kyslíka sleduj rovnicu a herný prah ohrevu. Hodnota prahu slúži iba pre hru.",
+		"ELEKTROLYZÉR\nPridaj vodu a zapni prúd. Vodík a kyslík sa zhromaždia oddelene. Kliknutím na výstup odoberieš všetky jeho porcie.",
+		"ĎALŠÍ PRÍSTROJ\nPostupne odomkneš aj ďalší prístroj. Pri výbere uvidíš rovnicu, podmienky a počet chýbajúcich porcií.",
+		"OBJAVY A ULOŽENIE\nPrvýkrát získaný produkt sa pridá do kolekcie. Vrátiť obsah vráti do zásoby látky zo vzorky aj z výstupov. Po načítaní hry sú všetky porcie v zásobe. Rozpracovaný zber a skladanie sa neukladajú."
+	])))
 	summary = _label(page, "", 16)
 	summary.modulate = Color("a5b4cb")
 	var progress_row := HBoxContainer.new()
@@ -84,6 +93,15 @@ func _ready() -> void:
 	fill.set_corner_radius_all(5)
 	progress_bar.add_theme_stylebox_override("fill", fill)
 	progress_row.add_child(progress_bar)
+	var instrument_label := _label(progress_row, "Prístroj", 16)
+	instrument_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	instrument_select = OptionButton.new()
+	instrument_select.tooltip_text = "Vzorka sa presunie do zvoleného prístroja. Plyny z výstupov sa vrátia do zásoby."
+	progress_row.add_child(instrument_select)
+	for id in experiment.catalog.reactions:
+		instrument_select.add_item(experiment.catalog.reactions[id].instrument_name)
+		instrument_select.set_item_metadata(instrument_select.item_count - 1, id)
+	instrument_select.item_selected.connect(_select_instrument)
 	var workspace := VBoxContainer.new()
 	workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	workspace.add_theme_constant_override("separation", 4)
@@ -100,6 +118,16 @@ func _ready() -> void:
 	flask.portion_dropped.connect(_add)
 	flask.draw.connect(_draw_flask)
 	center.add_child(flask)
+	var slot := 0
+	for id in experiment.catalog.reactions.electrolyzer.products:
+		var outlet := Button.new()
+		outlet.position = Vector2(8 + slot * 144, 120)
+		outlet.size = Vector2(138, 42)
+		outlet.tooltip_text = "Presunúť plyn z výstupu do zásoby"
+		outlet.pressed.connect(_collect_outlet.bind(id))
+		flask.add_child(outlet)
+		outlet_buttons[id] = outlet
+		slot += 1
 	var tools := VBoxContainer.new()
 	tools.custom_minimum_size.x = 380
 	tools.add_theme_constant_override("separation", 8)
@@ -117,9 +145,13 @@ func _ready() -> void:
 	cool_button.toggle_mode = true
 	cool_button.pressed.connect(func(): _set_tool("cool" if cool_button.button_pressed else "off"))
 	tool_buttons.add_child(cool_button)
+	run_button = Button.new()
+	tool_buttons.add_child(run_button)
+	run_button.pressed.connect(_run_instrument)
 	process_notice = _label(tools, "", 15)
 	process_notice.custom_minimum_size = Vector2(380, 70)
 	experiment.process_changed.connect(_process_notice)
+	experiment.reaction_completed.connect(_reaction_completed)
 	sample_label = _label(workspace, "", 18)
 	sample_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var actions := HBoxContainer.new()
@@ -143,7 +175,7 @@ func _ready() -> void:
 	page.add_child(stock_header)
 	var stock_title := _label(stock_header, "Zásoba", 21)
 	stock_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var hint := _label(stock_header, "Potiahni kartu do banky", 16)
+	var hint := _label(stock_header, "Klikni na kartu alebo ju potiahni do prístroja", 16)
 	hint.autowrap_mode = TextServer.AUTOWRAP_OFF
 	hint.modulate = Color("a5b4cb")
 	empty_label = _label(page, "Prázdna zásoba", 17)
@@ -161,7 +193,7 @@ func _ready() -> void:
 		var button := ReagentCard.new()
 		button.substance_id = substance.id
 		button.formula = substance.display_formula
-		button.tooltip_text = "Potiahni do banky · kliknutie pridá 1 porciu"
+		button.tooltip_text = "Kliknutie alebo presunutie pridá jednu porciu do prístroja"
 		button.custom_minimum_size = Vector2(190, 148)
 		button.pressed.connect(_add.bind(substance.id))
 		for state in ["normal", "hover", "pressed", "focus"]:
@@ -199,6 +231,9 @@ func _ready() -> void:
 func setup(state: RefCounted, research_state: RefCounted) -> void:
 	inventory = state
 	research = research_state
+	instrument_select.select(0)
+	experiment.instrument = "flask"
+	_reset_experiment()
 	discovery.research = research
 	flask.inventory = state
 	for row in rows.values():
@@ -220,6 +255,37 @@ func _reset_experiment() -> void:
 	experiment.reset()
 	process_notice.text = ""
 
+func _select_instrument(index: int) -> void:
+	var id: String = instrument_select.get_item_metadata(index)
+	var required: String = experiment.catalog.reactions[id].get("requires_element", "")
+	if not required.is_empty() and required not in research.available_elements:
+		return
+	for gas in inventory.outlets.keys():
+		inventory.collect_outlet(gas)
+	experiment.instrument = id
+	_reset_experiment()
+	refresh()
+	progress_changed.emit()
+
+func _collect_outlet(id: String) -> void:
+	if inventory.collect_outlet(id):
+		process_notice.text = ""
+		refresh()
+		progress_changed.emit()
+
+func _run_instrument() -> void:
+	if experiment.recipe.trigger != "heat":
+		experiment.react(inventory.sample, experiment.recipe.trigger, inventory.outlets)
+
+func _reaction_completed(products: Dictionary, excess: Dictionary) -> void:
+	var details := "Spotreba: %s. Produkty: %s. Zvyšok: %s.\n%s" % [
+		experiment.quantities(experiment.recipe.reactants), experiment.quantities(products),
+		"žiadny" if excess.is_empty() else experiment.quantities(excess), experiment.recipe.explanation]
+	process_notice.text = experiment.equation() + "\n" + details if experiment.recipe.trigger == "heat" else details
+	products_created.emit(products)
+	refresh()
+	progress_changed.emit()
+
 func _set_tool(value: String) -> void:
 	experiment.set_mode(value, inventory.sample)
 	process_notice.text = ""
@@ -233,22 +299,41 @@ func _process_notice(id: String) -> void:
 			process_notice.text = "Var · pri 1 atm približne 100 °C. Bubliny obsahujú vodnú paru. Biely oblak tvoria kvapôčky; samotná para je neviditeľná. Voda zostáva H₂O."
 		"cooled":
 			process_notice.text = "Ochladenie pod 100 °C zastavilo var. Nevznikla nová látka. Úplné odparenie ani kondenzáciu tu nemodelujeme."
-		"combustion":
-			process_notice.text = "CH₄ + 2 O₂ -> CO₂ + 2 H₂O\nReakcia prebehla pri hernom prahu 300 °C. Ohrev sa vypol; produkty môžeš ochladiť. Nejde o reálnu zápalnú teplotu."
-			products_created.emit({"carbon_dioxide": 1, "water": 2})
-			refresh()
-			progress_changed.emit()
 
 func _process(delta: float) -> void:
 	if inventory == null or not is_visible_in_tree():
 		return
 	animation_time += delta
-	experiment.step(delta, inventory.sample)
-	_update_experiment()
+	if experiment.recipe.trigger == "heat":
+		experiment.step(delta, inventory.sample)
+		_update_experiment()
 
 func _update_experiment() -> void:
 	var water: bool = experiment.is_water(inventory.sample)
 	var empty: bool = inventory.sample.is_empty()
+	var thermal: bool = experiment.recipe.trigger == "heat"
+	heat_button.visible = thermal
+	cool_button.visible = thermal
+	run_button.visible = not thermal
+	if not thermal:
+		run_button.text = experiment.recipe.action
+		var reason: String = experiment.ingredient_issue(inventory.sample)
+		if not inventory.outlets.is_empty():
+			reason = "Najprv odober plyny z výstupov."
+		run_button.disabled = not reason.is_empty()
+		run_button.tooltip_text = reason
+		temperature_label.text = experiment.equation()
+		if process_notice.text.is_empty():
+			process_notice.text = "%s\n%s" % [experiment.recipe.condition, reason if not reason.is_empty() else "Prístroj je pripravený."]
+		for id in outlet_buttons:
+			var outlet: Button = outlet_buttons[id]
+			outlet.visible = experiment.recipe.get("separate_outputs", false)
+			outlet.text = "%s × %d" % [experiment.formulas[id], inventory.outlets.get(id, 0)]
+			outlet.disabled = not inventory.outlets.has(id)
+		flask.queue_redraw()
+		return
+	for outlet in outlet_buttons.values():
+		outlet.hide()
 	heat_button.disabled = empty
 	cool_button.disabled = empty
 	heat_button.set_pressed_no_signal(experiment.mode == "heat")
@@ -257,10 +342,11 @@ func _update_experiment() -> void:
 	if process_notice.text.is_empty():
 		if water:
 			process_notice.text = {"heat": "Ohrev vody · 1 atm. Sleduj teplotu a zmenu pri 100 °C.", "cool": "Chladenie vody · teplota klesá k 20 °C."}.get(experiment.mode, "Čistá voda · zapni horák alebo chladenie.")
-		elif inventory.sample.is_empty():
+		elif "C" in research.available_elements:
+			var issue: String = experiment.ingredient_issue(inventory.sample)
+			process_notice.text = "%s\nHerný prah pri ohreve: %d °C. %s" % [experiment.equation(), int(experiment.recipe.temperature), issue if not issue.is_empty() else "Zmes je pripravená."]
+		elif empty:
 			process_notice.text = "Vlož vzorku do banky."
-		elif inventory.sample.has("methane"):
-			process_notice.text = "Herný recept: 1 CH₄ + 2 O₂, bez prímesí. Pri ohreve na 300 °C sa automaticky spracuje jedna dávka. Prah je podmienka hry."
 		else:
 			process_notice.text = "Mení sa modelová teplota. Pre túto vzorku nemáme ďalší podporovaný recept; nové látky nevznikajú."
 	flask.queue_redraw()
@@ -272,6 +358,12 @@ func _investigate() -> void:
 	discovery.show_substance(id)
 
 func refresh() -> void:
+	for i in instrument_select.item_count:
+		var rule: Dictionary = experiment.catalog.reactions[instrument_select.get_item_metadata(i)]
+		var required: String = rule.get("requires_element", "")
+		var locked: bool = not required.is_empty() and required not in research.available_elements
+		instrument_select.set_item_disabled(i, locked)
+		instrument_select.set_item_text(i, "Uzamknutý prístroj" if locked else str(rule.instrument_name))
 	var total := 0
 	var contents: Array[String] = []
 	var has_stock := false
@@ -284,7 +376,7 @@ func refresh() -> void:
 		row.button.text = ""
 		row.button.disabled = inventory.stock[id] == 0
 		var count: int = inventory.sample.get(id, 0)
-		total += inventory.stock[id] + count
+		total += inventory.stock[id] + count + inventory.outlets.get(id, 0)
 		if count > 0:
 			contents.append("%s × %d%s" % [row.data.display_formula, count, " (plyn)" if row.data.state_at_room_conditions == "gas" else ""])
 	empty_label.visible = true
@@ -293,17 +385,21 @@ func refresh() -> void:
 	# Keep the bottom tray's height even when the last card moves into the flask.
 	cards_area.visible = true
 	summary.text = "Spolu: " + _portions(total)
-	sample_label.text = "Banka: " + (", ".join(contents) if not contents.is_empty() else "prázdna")
-	return_button.disabled = contents.is_empty()
+	sample_label.text = "Vzorka: " + (", ".join(contents) if not contents.is_empty() else "prázdna")
+	return_button.disabled = contents.is_empty() and inventory.outlets.is_empty()
 	var sample_id: String = research.sample_id(inventory.sample)
 	research_button.disabled = sample_id.is_empty() or not research.researched.has(sample_id)
 	research_button.text = "Karta látky"
 	research_hint.text = "Nové látky sa pridávajú do kolekcie automaticky." if contents.is_empty() else ""
 	collection_button.text = "Kolekcia · %d" % research.researched.size()
-	progress_bar.max_value = research.threshold()
-	progress_bar.value = mini(research.researched.size(), research.threshold())
-	progress_label.text = "Všetky prvky alpha sú otvorené" if "C" in research.available_elements else "K novému prvku · %d/%d" % [research.researched.size(), research.threshold()]
-	progress_bar.visible = "C" not in research.available_elements
+	var progress: Vector2i = research.progress_to_next_element()
+	progress_bar.visible = progress.y > 0
+	if progress_bar.visible:
+		progress_bar.max_value = progress.y
+		progress_bar.value = progress.x
+		progress_label.text = "K novému prvku · %d/%d" % [progress.x, progress.y]
+	else:
+		progress_label.text = "Všetky dostupné prvky sú odomknuté"
 	_update_experiment()
 	flask.queue_redraw()
 
@@ -314,6 +410,20 @@ func _draw_flask() -> void:
 	var center := flask.size.x / 2
 	var tint := Color("8fe4d3") if flask.highlighted else Color("a5cddc")
 	flask.draw_style_box(_drop_style(flask.highlighted), Rect2(Vector2.ZERO, flask.size))
+	if experiment.instrument == "electrolyzer":
+		for id in outlet_buttons:
+			var x: float = outlet_buttons[id].position.x + outlet_buttons[id].size.x / 2
+			flask.draw_rect(Rect2(x - 30, 26, 60, 72), tint, false, 3)
+			flask.draw_line(Vector2(x, 98), Vector2(x, 118), tint, 3)
+			flask.draw_string(get_theme_default_font(), Vector2(x - 60, 67), rows[id].data.name, HORIZONTAL_ALIGNMENT_CENTER, 120, 18, tint)
+		return
+	if experiment.instrument == "reactor":
+		flask.draw_rect(Rect2(center - 82, 32, 164, 83), tint, false, 4)
+		flask.draw_line(Vector2(center - 118, 72), Vector2(center - 82, 72), tint, 4)
+		flask.draw_line(Vector2(center + 82, 72), Vector2(center + 118, 72), tint, 4)
+		flask.draw_string(get_theme_default_font(), Vector2(center - 80, 79), "Katalyzátor", HORIZONTAL_ALIGNMENT_CENTER, 160, 18, tint)
+		flask.draw_string(get_theme_default_font(), Vector2(0, 151), "Priemyselný reaktor", HORIZONTAL_ALIGNMENT_CENTER, flask.size.x, 17, tint)
+		return
 	var points := PackedVector2Array([Vector2(center - 20, 8), Vector2(center - 20, 45), Vector2(center - 68, 128), Vector2(center + 68, 128), Vector2(center + 20, 45), Vector2(center + 20, 8)])
 	flask.draw_polyline(points, tint, 4, true)
 	flask.draw_line(Vector2(center - 28, 8), Vector2(center + 28, 8), tint, 4)

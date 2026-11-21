@@ -3,7 +3,8 @@ const Catalog = preload("res://scripts/catalog.gd")
 signal discovered(id: String)
 signal element_unlocked(id: String)
 var researched: Dictionary = {}
-var available_elements: Array[String] = ["H", "O"]
+var catalog := Catalog.load_data()
+var available_elements := Catalog.unlocked_elements(catalog.elements, 0)
 
 func is_available(substance: Dictionary) -> bool:
 	for symbol in substance.atoms:
@@ -11,8 +12,14 @@ func is_available(substance: Dictionary) -> bool:
 			return false
 	return true
 
-func threshold() -> int:
-	return int(Catalog.load_data().progression.unique_research_to_unlock_carbon)
+func progress_to_next_element() -> Vector2i:
+	var previous := 0
+	for element in catalog.elements:
+		var required := int(element.discoveries_required)
+		if required > researched.size():
+			return Vector2i(researched.size() - previous, required - previous)
+		previous = required
+	return Vector2i.ZERO
 
 func sample_id(sample: Dictionary) -> String:
 	var id := ""
@@ -22,7 +29,7 @@ func sample_id(sample: Dictionary) -> String:
 		if not id.is_empty():
 			return ""
 		id = key
-	for substance in Catalog.load_data().substances:
+	for substance in catalog.substances:
 		if substance.id == id and is_available(substance):
 			return id
 	return ""
@@ -33,7 +40,7 @@ func investigate(sample: Dictionary) -> bool:
 
 func discover(id: String) -> bool:
 	var available := false
-	for substance in Catalog.load_data().substances:
+	for substance in catalog.substances:
 		if substance.id == id and is_available(substance):
 			available = true
 	if not available:
@@ -42,7 +49,8 @@ func discover(id: String) -> bool:
 		return false
 	researched[id] = true
 	discovered.emit(id)
-	if researched.size() >= threshold() and "C" not in available_elements:
-		available_elements.append("C")
-		element_unlocked.emit("C")
+	for symbol in Catalog.unlocked_elements(catalog.elements, researched.size()):
+		if symbol not in available_elements:
+			available_elements.append(symbol)
+			element_unlocked.emit(symbol)
 	return true

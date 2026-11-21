@@ -5,3 +5,8 @@
 /builds/
 /artifacts/
 *.log
+
+# Local Russian-language documentation
+/docs/ALPHA_RELEASE.md
+/docs/BETA_0_1_PLAN.md
+/docs/CHEMISTRY_SOURCES.md
