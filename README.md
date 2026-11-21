@@ -1,169 +1,75 @@
-# Alchemio Alpha
+# Alchemio
 
-Образовательная 2D-игра на Godot 4.5.1, GDScript, Compatibility. Интерфейс первой версии — словацкий (`sk`).
+## O projekte
 
-## Текущее состояние
+Alchemio je vzdelávacia 2D hra v slovenčine pre žiakov 7. až 9. ročníka základnej školy. Hodí sa na samostatné objavovanie aj na precvičovanie učiva na hodine chémie. Na mape zbieraš atómy, na pracovnej ploche ich spájaš do molekúl a v laboratóriu skúmaš vlastnosti objavených látok.
 
-A0–A7 и техническая часть A8: сбор атомов, графовая сборка, запас порций, лаборатория, исследования, коллекция и открытие C после двух разных открытых веществ. Каталог: H₂, O₂, H₂O и семь углеродных веществ. Запас и исследования автоматически сохраняются; доступность C восстанавливается по числу разных открытых веществ.
+Pri skladaní vody napríklad zistíš, čo vyjadruje vzorec H₂O a ako sú jej tri atómy navzájom spojené. Pri zahrievaní potom vidíš, že voda aj počas varu zostáva tou istou látkou. Pri modelovej reakcii metánu s kyslíkom sa tie isté atómy usporiadajú do molekúl nových látok.
 
-Карта размером 2600×1800 больше экрана: Camera2D следует за игроком, рамки вокруг арены нет. На карте гарантированно находятся 24 H и 24 O; после открытия нового элемента добавляются 24 C со следующего цикла. Вместимость — 12 атомов (настраивается в `data/catalog.json`). Подбор происходит при касании любой частью собранной группы. Первый атом заменяет кружок и учитывается ровно один раз. Остальные прикрепляются друг к другу палочками в местах, близких к касанию, без наложений. Палочки обозначают только крепления во время сбора, а не химические связи. Скорость по диагонали не увеличивается, вся группа остаётся внутри границ мира.
+## Inštalácia a spustenie
 
-Инструкции, счётчик и кнопка закреплены в отдельном CanvasLayer поверх игрового поля; заголовки над картой удалены. Положение атомов в мире не меняется при движении камеры или изменении окна.
+### Zo zdrojových súborov
 
-Кнопка «K skladaniu» доступна после первого подбора и открывает рабочее поле. Крепления с карты не переносятся как химические связи: все атомы изначально раздельны. «Späť na mapu» возвращает на ту же карту с тем же набором; уже построенные связи и позиции сохраняются при повторном входе, дополнительные атомы добавляются отдельно.
+1. Stiahni si **Godot Engine 4.5.1** vo vydaní **Standard** pre svoj operačný systém a spusti editor. [Stiahnuť Godot 4.5.1](https://godotengine.org/download/archive/4.5.1-stable/)
+2. Ak máš projekt v archíve ZIP, rozbaľ ho. V správcovi projektov Godot klikni na **Import** a vyber súbor `project.godot` v priečinku s týmto README.
+3. Otvor importovaný projekt, počkaj na dokončenie importu a stlač **F5**. Pri prvom spustení sa otvorí mapa s atómami vodíka a kyslíka.
 
-## Сборка A2
+### Z hotovej webovej verzie
 
-1. В режиме **Presun** перетаскивать атомы мышью. Наложение на другой атом отменяет перенос.
-2. Выбрать **Jednoduchá**, **Dvojitá** или **Trojitá**, затем последовательно щёлкнуть по двум атомам. Повторная связь между той же парой меняет её порядок; самосвязи запрещены.
-3. Для удаления перейти в **Presun**, щёлкнуть по линии и нажать **Delete** или **Odstrániť väzbu**.
-4. Правильные группы подсвечиваются зелёным и подписываются формулой. Проверяется вся связанная группа, включая кратность связей. Нельзя получить воду из части более крупной неверной конструкции.
-5. **Dokončiť skladanie** показывает результат. Если есть нераспознанные/неиспользованные атомы, сначала нужно подтвердить их отбрасывание; отмена сохраняет сборку.
-6. В лаборатории показаны только вещества с ненулевым запасом. Прямоугольные карточки находятся внизу лаборатории; правила и ограничения доступны через **? Pomoc**. Перетащить карточку вещества на подсвеченную колбу (или нажать на карточку), чтобы перенести одну порцию; отпускание вне колбы ничего не расходует. **Vrátiť obsah** возвращает всё содержимое. **Nový zber** возвращает содержимое и начинает следующий сбор, сохраняя накопленный запас. В A3 результат один раз пополняет инвентарь и открывает лабораторию. Правильная модель сразу открывает вещество и добавляет его в коллекцию. Продукты реакции открываются автоматически; отдельная кнопка не нужна. «Karta látky» только показывает уже известную карточку чистой пробы. Открытие не выдаёт порции до завершения сборки. Последний результат хранится в `main.last_assembly_result` до следующего завершения или закрытия игры.
+Ak máš webový balík `Alchemio-alpha-A8-web.zip`, rozbaľ ho a otvor terminál v priečinku, ktorý obsahuje `index.html`. Na spustenie potrebuješ Python 3 a prehliadač s podporou WebGL 2.0. Editor Godot môžeš pri tejto možnosti vynechať.
 
-Состав HHHOOO позволяет получить H₂O и O₂ с одним отброшенным H. Для воды нужны две одинарные связи H–O, для O₂ — двойная, для H₂ — одинарная. Положение и ориентация модели не влияют на проверку. Несколько отдельных правильных молекул дают соответствующее количество условных порций. Завершение расходует набор один раз и блокирует повторную выдачу.
+1. Vo Windows spusti `py -m http.server 8060 --bind 127.0.0.1`. V Linuxe alebo macOS použi `python3 -m http.server 8060 --bind 127.0.0.1`.
+2. V prehliadači otvor [lokálnu hru](http://127.0.0.1:8060/). Terminál nechaj počas hrania otvorený. Po skončení zastavíš server klávesmi **Ctrl+C**.
 
-## Запуск
+Webový balík sa distribuuje samostatne. Ak máš iba zdrojové súbory z repozitára, hru spustíš prvým postupom.
 
-Импортировать `project.godot` в Godot 4.5.1 и нажать F6 для сцены или F5 для проекта. Главная сцена уже назначена.
+## Ovládanie a prvý pokus
 
-Работающее управление: `move_left/right/up/down` — WASD и стрелки на карте. Кнопки и сборка управляются мышью; `delete_bond` — Delete — удаляет выбранную связь на поле сборки.
+Skús si ako prvú molekulu poskladať **vodu (H₂O)** a priviesť ju v laboratóriu do varu.
 
-Базовый размер 1280×720, окно 1152×648, масштабирование `canvas_items`. Начальный экран прокручивается при недостатке высоты.
+1. **Zozbieraj atómy.** Po mape sa pohybuj klávesmi **WASD** alebo **šípkami**. Dotkni sa dvoch atómov vodíka (**H**) a jedného atómu kyslíka (**O**). Unesieš najviac 12 atómov. Tyčky, ktoré na mape držia skupinu pokope, slúžia len na prenášanie. Keď máš potrebné atómy, klikni na **K skladaniu**.
+2. **Vytvor dve väzby.** V režime **Presun** si môžeš atómy rozmiestniť myšou. Vyber **Jednoduchá**, klikni na prvý H a potom na O. Rovnako spoj druhý H s tým istým O. Hra rozpozná model H–O–H, zvýrazní ho zelenou farbou a vodu hneď pridá do zbierky **Kolekcia**.
+3. **Získaj porciu vody.** Klikni na **Dokončiť skladanie**. Za každú dokončenú molekulu dostaneš do zásoby jednu hernú porciu látky. Ak ti zostali nevyužité atómy, hra si pred ich zahodením vypýta potvrdenie. Ak niečo chýba, cez **Späť na mapu** môžeš pokračovať v zbere.
+4. **Pozoruj var.** V laboratóriu klikni na kartu vody alebo ju potiahni do banky. Každým pridaním presunieš jednu porciu. Zvoľ **Nahriať**. Pri tlaku 1 atm začne čistá voda v modeli vrieť približne pri 100 °C. Stlač **Ochladiť** a sleduj, kedy var prestane. Cez **Vrátiť obsah** vrátiš vzorku do zásoby.
 
-## Структура
+Pri ďalšom zbere skús spojiť dva atómy O väzbou **Dvojitá**. Po objavení dvoch rôznych látok sa na nasledujúcej mape objaví aj uhlík (C).
 
-- `scenes/main.tscn` — главная сцена.
-- `scripts/main.gd` — HUD и экран передачи добычи.
-- `scenes/collection_map.tscn`, `scripts/collection_map.gd` — арена, гарантированное размещение, подбор и передача копии набора.
-- `scripts/collector.gd` — движение и изображение прикреплённых атомов.
-- `scripts/atom.gd` — отдельный свободный атом с постоянным ID в рамках сбора.
-- `scripts/assembly_graph.gd` — отдельный граф, поиск связных групп, проверка структур и однократное завершение.
-- `scenes/assembly_board.tscn`, `scripts/assembly_board.gd` — позиции, мышь и отрисовка поля сборки; координаты не участвуют в проверке химии.
-- `scripts/assembly_panel.gd` — режимы редактирования, предпросмотр результата, подтверждение остатков и результат.
-- `scripts/inventory.gd` — запас сессии и перенос порций без двойного учёта; `scenes/laboratory.tscn`, `scripts/laboratory.gd` — колба, запас и новый сбор.
-- `tests/inventory_test.gd` — два полных цикла, однократная выдача, смеси, возврат и выход из лаборатории.
-- `scripts/research.gd` — уникальные открытия по ID; `scripts/discovery_panel.gd` — карточки и коллекция; `tests/research_test.gd` — проверки правил A4.
-- `scripts/save_service.gd` — версия сохранения, проверка данных, запись через временный файл и резервная копия; `tests/save_test.gd` — изолированная проверка сохранений и перезапуска.
-- `scripts/catalog.gd` — загрузка справочных данных.
-- `data/catalog.json` — независимые от прогресса данные alpha.
-- `tests/smoke.gd` — проверка загрузки, связей десяти моделей (CO отдельно с формальными зарядами) и действий ввода.
-- `tests/collection_test.gd` — интеграционная проверка движения, границ, вместимости и передачи/возврата добычи.
-- `tests/assembly_test.gd` — графовые проверки и интеграционные события мыши/клавиатуры для сборки, удаления связей, завершения и нового цикла.
-- `docs/CHEMISTRY_SOURCES.md` — источники и границы учебной модели.
-- `assets/fonts/NotoSans.ttf` — встроенный шрифт для словацких символов и нижних индексов, SIL Open Font License в соседнем `OFL.txt`; источник — официальный репозиторий Google Fonts.
-- `export_presets.cfg` — однопоточный Web-профиль без расширений.
-
-В `bonds` каждая запись имеет вид `[индекс_атома_A, индекс_атома_B, порядок_связи]`. Индексы начинаются с нуля. `id` постоянный, `name` — словацкое отображаемое название. `relative_atomic_mass` безразмерна; это не массовое число изотопа. `mass_uncertainty` хранит неопределённость сокращённого табличного значения.
-
-## Проверка через PowerShell
-
-```powershell
-$godotPath = 'D:\Apps\Godot_v4.5.1-stable_win64.exe'
-& $godotPath --headless --path . --script res://tests/smoke.gd
-& $godotPath --headless --path . --script res://tests/collection_test.gd
-& $godotPath --headless --path . --script res://tests/assembly_test.gd
-& $godotPath --headless --path . --script res://tests/inventory_test.gd
-& $godotPath --headless --path . --script res://tests/research_test.gd
-& $godotPath --headless --path . --script res://tests/progression_test.gd
-& $godotPath --headless --path . --script res://tests/experiment_test.gd
-& $godotPath --headless --path . --script res://tests/save_test.gd
-& $godotPath --headless --path . --script res://tests/save_test.gd -- --read
-& $godotPath --headless --path . --quit-after 5
-```
-
-При автоматизации GUI-версию exe лучше запускать через `Start-Process -Wait -WindowStyle Hidden`, чтобы дождаться результата. Лог задавать абсолютным путём. В ограниченной среде тесты используют локальный `.tools/appdata` через переменную APPDATA процесса; обычный запуск из редактора этого не требует.
-
-## Веб-экспорт
-
-Профиль использует официальные однопоточные `web_nothreads_debug.zip` и `web_nothreads_release.zip` версии 4.5.1 в `.tools/`. Они извлекаются из архива [официальных шаблонов](https://github.com/godotengine/godot-builds/releases/download/4.5.1-stable/Godot_v4.5.1-stable_export_templates.tpz), из каталога `templates/`. Шаблоны не включены в Git.
-
-```powershell
-New-Item -ItemType Directory -Force builds/web | Out-Null
-& $godotPath --headless --path . --export-release Web builds/web/index.html
-```
-
-Либо установить стандартные шаблоны 4.5.1 через редактор и очистить оба поля Custom Template у профиля Web. Экспорт нужно открывать через HTTP, а не двойным щелчком по HTML. Из папки проекта запустить локальный сервер (остановка через Ctrl+C):
-
-```powershell
-./tools/serve-web.ps1
-```
-
-Альтернатива при наличии Python:
-
-```powershell
-python -m http.server 8060 --bind 127.0.0.1 --directory builds/web
-```
-
-Затем открыть `http://127.0.0.1:8060`. Необходим браузер с WebGL 2.0. Каталог JSON явно включён в экспорт. `.godot`, `.tools`, `artifacts` и `builds` исключены из Git.
-
-## Следующий этап
-
-A8: технические проверки и полировка завершены; ожидается пробное прохождение пользователем. A7 завершён: версия формата, автосохранение, безопасный учёт колбы, резервная копия и подтверждение новой игры. A6 завершён: опыт с чистой водой (20–100 °C, 1 атм), горелка, охлаждение, пузырьки и объяснения; также одна согласованная реакция полного горения метана. A5 завершён: до открытия шкала «K novému prvku · 0/2» не раскрывает следующий элемент. Два уникальных исследования открывают C один раз; окна идут по очереди: вещество → достижение порога → элемент. После открытия нет вымышленного следующего порога. Полный план: `../Alchemio_Alpha_Plan.md`. Запас и исследования восстанавливаются после перезапуска; незавершённый сбор и граф сборки не сохраняются.
-
-Веб-сборка `builds/web` обновлена до A8; приёмочные проверки и ограничения описаны в `docs/ALPHA_RELEASE.md`. Проверены обновление страницы и повторное открытие: порция из колбы возвращается в запас один раз, исследование сохраняется, карточка открытия не выдаётся повторно.
-
-
-
-
-
-## Углеродные вещества A5
-
-После открытия C доступны сборка, запас и исследование семи веществ:
-
-| Вещество | Формула / учебная структура |
+| Čo chceš urobiť | Ako na to |
 | --- | --- |
-| Углекислый газ | O=C=O |
-| Угарный газ | ⁻C≡O⁺ — формальные заряды, суммарный заряд 0 |
-| Метан | CH₄, четыре одинарные C–H |
-| Метанол | CH₃–O–H |
-| Этанол | CH₃–CH₂–O–H |
-| Муравьиная кислота | H–C(=O)–O–H |
-| Уксусная кислота | CH₃–C(=O)–O–H |
+| Zmeniť násobnosť väzby | Vyber **Jednoduchá**, **Dvojitá** alebo **Trojitá** a postupne klikni na oba spojené atómy. |
+| Odstrániť väzbu | V režime **Presun** klikni na čiaru medzi atómami a stlač **Delete** alebo **Odstrániť väzbu**. |
+| Prečítať si o látke | Otvor **Kolekcia** a vyber objavenú látku. |
+| Vrátiť sa z laboratória na mapu | Zvoľ **Nový zber**. Obsah banky sa vráti do zásoby. |
+| Zobraziť návod | V ktorejkoľvek fáze klikni na **? Pomoc**. |
 
-Все H при сборке представлены отдельными атомами. Самая большая модель (этанол) занимает 9 из 12 мест. Проверяется полная структура, а не только формула; диметиловый эфир не выдаётся за этанол. Это согласованный учебный набор, а не все соединения C/H/O. Сборка не является реальным синтезом; реализован только отдельный модельный рецепт полного горения метана, остальные реакции пока не поддерживаются. Источники — `docs/CHEMISTRY_SOURCES.md`.
+### Čo sa uloží po skončení hry?
 
-`tests/progression_test.gd` проверяет все 10 структур, другую связность при том же составе, альтернативную пару исследований, однократное открытие, очередь окон и семь игровых циклов с углеродными веществами.
+Hra automaticky ukladá objavy a zásobu látok. Po opätovnom spustení s uloženým postupom sa otvorí laboratórium. Porcie z banky nájdeš späť v zásobe. Rozpracovaný zber a rozostavané molekuly sa po ukončení hry stratia. Ak chceš začať úplne odznova, vyber **Nová hra** a potvrď vymazanie postupu.
 
-## Нагрев, охлаждение и реакция
+Vo webovej verzii sa postup ukladá v prehliadači. Ak chceš pokračovať, použi rovnaký profil aj adresu vrátane portu. V súkromnom okne môže postup po zatvorení okna zaniknúť.
 
-- **Nahriať** и **Ochladiť** доступны для любой непустой пробы и выключают друг друга. Температура всегда отображается. Отдельная кнопка поджигания удалена.
-- Чистая вода: игровой нагрев 8 °C/с до 100 °C при 1 атм, пузырьки и объяснение кипения. Остальные пробы: условная температура 20–600 °C, нагрев 20 °C/с. Охлаждение — 10 °C/с, пассивное остывание — 2 °C/с до 20 °C.
-- Поддерживаемая смесь только CH₄ и O₂, минимум 1 и 2 порции: при включённом нагреве до **300 °C** автоматически расходуется одна доза 1 CH₄ + 2 O₂ и образуется 1 CO₂ + 2 H₂O. Избыток сохраняется. **300 °C — явно условный порог игры, не реальная температура воспламенения метана.**
-- После реакции нагрев выключается, температура остаётся 300 °C. Можно охлаждать продукты; реагенты от этого не восстанавливаются. Смеси с продуктами и посторонними примесями не поддерживают повторный запуск рецепта.
-- Ниже порога, при охлаждении или неподходящем составе новые вещества не возникают. При нагреве неподдерживаемых проб меняется только модельная температура; полноценные фазовые переходы и реальные побочные реакции не симулируются.
-- Новые продукты сразу открываются и добавляются в коллекцию. Порции обозначают одинаковые относительные количества частиц, а не одинаковые массы; баланс атомов сохраняется.
-- Возврат содержимого возвращает текущие продукты/остатки без восстановления реагентов. Перенос новой порции, возврат и новый сбор сбрасывают тепловой опыт к 20 °C и выключают приборы. Это сброс модели, не реальное возвращение улетевшего пара.
-- Положение и размеры колбы закреплены относительно лаборатории: верхние растягивающиеся отступы убраны, вертикальное выравнивание фиксировано, ширина прокрутки и место нижней полки зарезервированы. Смена текста, опустошение запаса и реакция не сдвигают колбу.
+## Stav vývoja
 
-`scripts/lab_experiment.gd` содержит модель. `tests/experiment_test.gd` проверяет порог, запрет реакции без условий, охлаждение продуктов, сохранение атомов и неизменность прямоугольника колбы при переносах/реакции.
+**Hrateľná alfa A8, stav k 21. novembru 2026.** Technická časť alfy je dokončená. Záverečné skúšobné hranie aktuálnej verzie ešte čaká na vyhodnotenie.
 
-## Сохранения A7
+**Čo už funguje**
 
-Автосохранение выполняется после завершения сборки, первого исследования, переноса/возврата порций, реакции и перехода к новому сбору. Формат JSON версии 1 хранит общий запас (инвентарь + содержимое колбы) и уникальные ID исследований. C восстанавливается при двух уникальных исследованиях без повторной награды или очереди карточек.
+- Zber troch prvkov (H, O, C), skladanie 10 modelov molekúl a automatické ukladanie zbierky aj zásoby látok.
+- Ohrev a chladenie vody a model úplného spaľovania metánu. Produkty reakcie sa automaticky pridajú medzi objavené látky.
+- Slovenské rozhranie s nápovedou v každej fáze hry a webová verzia pre počítače s klávesnicou a myšou.
 
-При запуске сохранённой игры открывается лаборатория: все порции находятся в запасе, колба пуста, температура исходная, приборы выключены. Не сохраняются незавершённая карта, добыча, граф и позиции атомов, температура и открытые окна. Ограничение указано в интерфейсе и помощи.
+**Čo je v pláne**
 
-**Nová hra** доступна на карте и в лаборатории; сброс требует подтверждения. Отмена сохраняет прогресс. Подтверждение записывает пустой запас и исследования и начинает новую карту H/O. Резервная копия также сбрасывается, чтобы старый прогресс не вернулся после восстановления.
+- Overiť so žiakmi, či dokážu samostatne prejsť od zberu po pokus v laboratóriu, a podľa ich spätnej väzby upraviť ovládanie a nápovedu.
+- S učiteľom chémie skontrolovať správnosť a zrozumiteľnosť vysvetlení.
+- Ak zvýši čas, pridať krátke zvuky pri zbere atómu a objavení látky.
 
-Нативное сохранение: `user://progress.json`, обычно `%APPDATA%/Godot/app_userdata/Alchemio/progress.json`. Предыдущий корректный файл хранится в `progress.json.bak`. Повреждённый основной файл восстанавливается из копии с уведомлением. Если обе копии непригодны или версия основного файла новее поддерживаемой, автоматическая перезапись блокируется до явного сброса через «Новую игру».
+Laboratórium pracuje s vybranými školskými modelmi. Pri reakcii CH₄ + 2 O₂ → CO₂ + 2 H₂O používa hra vlastný prah ohrevu 300 °C. Táto hodnota slúži výhradne ako herná podmienka. Podrobnosti o rozsahu alfy a skúšobnom hraní sú v [poznámkach k vydaniu (po rusky)](docs/ALPHA_RELEASE.md).
 
-Веб использует IndexedDB через Godot `user://` — сохранение привязано к браузерному профилю и адресу сайта, включая порт. В приватном режиме или при запрете хранилища постоянство не гарантируется; обнаруженный запрет обозначается в интерфейсе. Официальное описание: [Godot 4.5 — Web persistence](https://docs.godotengine.org/en/4.5/tutorials/export/exporting_for_web.html#using-cookies-for-data-persistence). Одновременная игра в нескольких вкладках с одним сохранением не синхронизируется.
+## Zdroje a licencie
 
-Проверки A7 пишут только `artifacts/a7-test-save.json`, а остальные интеграционные тесты отключают постоянные сохранения, чтобы не затрагивать игровой прогресс. Два последовательных запуска `save_test.gd` (обычный и `-- --read`) проверяют восстановление в отдельном процессе.
-
-
-## Приёмка A8
-
-`docs/ALPHA_RELEASE.md` содержит запуск, известные ограничения и вопросы для пробного прохождения. Полный автоматический сценарий: `godot --path . res://tests/alpha_acceptance.tscn` (или использовать полный путь к Godot из команд выше). Для Web QA он экспортируется отдельно с главным сценарием `tests/alpha_acceptance.tscn`; обычная сборка не содержит автопрогон и не меняет пользовательские сохранения ради проверки.
-
-Улучшены подсказки сбора/сборки, прокручиваемая помощь, модальные окна и высота карточек; декоративные стрелки заменены короткими подписями, чтобы не зависеть от отсутствующих веб-глифов. Обычная веб-сборка упакована в `builds/Alchemio-alpha-A8-web.zip`. Пользовательская приёмка остаётся открытой; звуки отложены как необязательные.
-
-
-## Автоматические открытия — изменение после A8
-
-С 21 ноября 2026 правильная связанная группа открывает вещество немедленно, ещё до завершения сборки. Продукты поддерживаемой реакции в колбе тоже открываются автоматически. Неблокирующие плашки идут по очереди и исчезают через 5 секунд либо по OK; редактирование не останавливается. Повторное появление того же ID не даёт нового открытия. Два разных открытия открывают следующий элемент без его предварительного названия.
-
-Открытие — знание о модели; порции выдаются только при завершении сборки или успешной реакции. Если модель позже разобрать или выйти до завершения, открытие останется, а порция не начислится. Открытия сохраняются сразу, хотя незавершённый граф не сохраняется. В старых сохранениях вещества, уже находящиеся в запасе, автоматически добавляются в коллекцию. Поле `researched` версии 1 оставлено для совместимости и теперь обозначает открытые вещества.
-
-Уточнение интерфейса: уведомления вынесены на отдельный CanvasLayer, поэтому заново созданное поле сборки не перекрывает их и не перехватывает клики. На этапе сборки есть кнопка «Kolekcia»; «Čítať» в уведомлении открывает карточку конкретного вещества. Общая коллекция доступна независимо от видимости лаборатории, таймер уведомления при чтении приостанавливается, атомы и связи сохраняются. Регрессия второго цикла и клики проверяются `tests/notice_test.gd`.
+- **Chemické údaje.** Atómové hmotnosti vychádzajú z tabuliek CIAAW. Vzorce a štruktúry molekúl boli overené podľa NIST Chemistry WebBook a PubChem. Vysvetlenia väzieb, varu a chemických rovníc vychádzajú z Chemistry LibreTexts a OpenStax Chemistry 2e. [Zdroje ku konkrétnym látkam a pokusom (po rusky)](docs/CHEMISTRY_SOURCES.md)
+- **Godot Engine** je vydaný pod licenciou MIT. [Licencia Godot Engine](https://godotengine.org/license/)
+- **Ikona projektu** používa logo Godot (© 2017 Andrea Calabró) pod licenciou CC BY 4.0. [Logo Godot](https://godotengine.org/press/) · [Licencia CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+- **Písmo Noto Sans** od The Noto Project Authors sa používa podľa licencie SIL Open Font License 1.1. [Priložený text licencie](assets/fonts/OFL.txt)
+- **Kód a pôvodný obsah hry Alchemio.** Pre túto časť projektu zatiaľ v repozitári nie je uvedená samostatná licencia.
