@@ -38,6 +38,7 @@ func run_checks() -> void:
 	main.finish_button.pressed.emit()
 	main.preview_page.board.connect_atoms(0,1,1)
 	main.preview_page.board.connect_atoms(2,1,1)
+	check(service.load_progress().data.researched.has("water") and service.load_progress().data.inventory.water == 0, "Immediate discovery saves before assembly grants portions")
 	main.preview_page.board.connect_atoms(3,5,2)
 	main.preview_page.finalize_assembly()
 	check(service.load_progress().data.inventory.water == 1, "Assembly auto-saves")
@@ -66,7 +67,8 @@ func run_checks() -> void:
 	main.laboratory.rows.methane.button.pressed.emit()
 	main.laboratory.rows.oxygen.button.pressed.emit()
 	main.laboratory.rows.oxygen.button.pressed.emit()
-	main.laboratory.reaction_button.pressed.emit()
+	main.laboratory._set_tool("heat")
+	main.laboratory.experiment.step(14, main.inventory.sample)
 	var saved: Dictionary = service.load_progress().data.inventory
 	check(saved.water == 3 and saved.carbon_dioxide == 1 and saved.methane == 0 and saved.oxygen == 0, "Reaction saves products and consumed reactants")
 	main.laboratory.new_collection_requested.emit()
@@ -98,6 +100,17 @@ func run_checks() -> void:
 	check(service.load_progress().status == "invalid", "Future save is not downgraded")
 	check(not service.save_progress(Inventory.new(),Research.new()), "Invalid save remains protected")
 	check(service.reset_progress(Inventory.new(),Research.new()), "Explicit reset unblocks invalid save")
+	var legacy_inventory = Inventory.new()
+	legacy_inventory.credit({"water":1})
+	check(service.save_progress(legacy_inventory,Research.new()), "Prepare legacy stock without manual research")
+	var migrated = new_main()
+	check(migrated.research.researched.has("water") and migrated.inventory.stock.water == 1, "Legacy owned substance becomes discovered without adding portions")
+	migrated.queue_free()
+	await process_frame
+	migrated = new_main()
+	check(not migrated.discovery_notice.visible and migrated.research.researched.has("water"), "Migrated discovery is saved and not notified twice")
+	migrated.queue_free()
+	await process_frame
 	# Leave a known checkpoint for the second OS-process read test.
 	var inventory = Inventory.new()
 	var research = Research.new()

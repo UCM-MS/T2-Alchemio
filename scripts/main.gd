@@ -4,6 +4,10 @@ const Inventory = preload("res://scripts/inventory.gd")
 const Research = preload("res://scripts/research.gd")
 const LabScene = preload("res://scenes/laboratory.tscn")
 const SaveService = preload("res://scripts/save_service.gd")
+const HelpDialog = preload("res://scripts/help_dialog.gd")
+const DiscoveryNotice = preload("res://scripts/discovery_notice.gd")
+var discovery_notice: PanelContainer
+var map_help: AcceptDialog
 var save_service = SaveService.new()
 var persistence_enabled := true
 var save_label: Label
@@ -71,7 +75,7 @@ func _ready() -> void:
 	hint_label.offset_top = -94
 	hint_label.offset_bottom = -24
 	finish_button = Button.new()
-	finish_button.text = "K skladaniu  →"
+	finish_button.text = "K skladaniu"
 	finish_button.focus_mode = Control.FOCUS_NONE
 	map_page.add_child(finish_button)
 	finish_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -83,8 +87,11 @@ func _ready() -> void:
 	laboratory = LabScene.instantiate()
 	screen.add_child(laboratory)
 	laboratory.setup(inventory, research)
+	# One collection window shared by assembly, notifications and the laboratory.
+	laboratory.discovery.reparent(screen)
 	laboratory.new_collection_requested.connect(_new_collection)
 	laboratory.progress_changed.connect(_save_progress)
+	laboratory.products_created.connect(_discover_products)
 	laboratory.new_game_requested.connect(_request_new_game)
 	laboratory.hide()
 	collection_map = MapScene.instantiate()
@@ -94,6 +101,24 @@ func _ready() -> void:
 	finish_button.pressed.connect(collection_map.finish_collection)
 	add_child(collection_map)
 	_build_save_controls()
+	var notice_layer := CanvasLayer.new()
+	notice_layer.layer = 20
+	add_child(notice_layer)
+	var notice_screen := Control.new()
+	notice_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	notice_screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	notice_screen.theme = screen.theme
+	notice_layer.add_child(notice_screen)
+	discovery_notice = DiscoveryNotice.new()
+	notice_screen.add_child(discovery_notice)
+	discovery_notice.open_requested.connect(_open_discovery)
+	laboratory.discovery.visibility_changed.connect(func(): discovery_notice.timer.paused = laboratory.discovery.visible)
+	# Existing saves can contain portions that were never manually researched.
+	var owned: Dictionary = inventory.stock.duplicate(true)
+	for id in owned:
+		if owned[id] <= 0:
+			owned.erase(id)
+	_discover_products(owned)
 	if loaded.has("data"):
 		# A loaded checkpoint resumes in a clean laboratory, not a spent graph.
 		preview_page.board.graph.finalized = true
@@ -106,7 +131,7 @@ func _ready() -> void:
 	elif loaded.status == "invalid":
 		save_label.text = "Uloženie nemožno načítať. Súbor ostáva zachovaný; reset cez Nová hra."
 	else:
-		save_label.text = "Ukladá sa zásoba a výskum; rozpracovaný zber a skladanie nie."
+		save_label.text = "Ukladá sa zásoba a objavy; rozpracovaný zber a skladanie nie."
 
 func _build_save_controls() -> void:
 	save_label = add_label(screen, "", 13, Color("a5b4cb"))
@@ -121,9 +146,17 @@ func _build_save_controls() -> void:
 	map_page.add_child(reset_button)
 	reset_button.position = Vector2(28, 24)
 	reset_button.pressed.connect(_request_new_game)
+	map_help = HelpDialog.new()
+	screen.add_child(map_help)
+	var help_button := Button.new()
+	help_button.text = "? Pomoc"
+	help_button.position = Vector2(180, 24)
+	map_page.add_child(help_button)
+	help_button.pressed.connect(func(): map_help.open("Zber atómov", "Pohybuj sa pomocou WASD alebo šípok. Atóm sa pripojí pri dotyku ľubovoľnou časťou tvojej skupiny.\n\nKapacita je 12 atómov. Hľadaj rôzne symboly a zbieraj ich podľa potreby.\n\nK skladaniu otvorí pracovnú plochu. Pred dokončením sa môžeš vrátiť na tú istú mapu a pokračovať v zbieraní.\n\nTyčky pri zbere sú iba uchytenia. Chemické väzby vytvoríš až pri skladaní. Rozpracovaný zber a skladanie sa po zatvorení hry neobnovia."))
 	reset_confirmation = ConfirmationDialog.new()
+	reset_confirmation.exclusive = true
 	reset_confirmation.title = "Nová hra?"
-	reset_confirmation.dialog_text = "Vymaže sa zásoba, výskum aj otvorené prvky.\nRozpracovaný zber a skladanie sa zahodia."
+	reset_confirmation.dialog_text = "Vymaže sa zásoba, objavy aj otvorené prvky.\nRozpracovaný zber a skladanie sa zahodia."
 	reset_confirmation.ok_button_text = "Začať odznova"
 	reset_confirmation.cancel_button_text = "Zrušiť"
 	reset_confirmation.confirmed.connect(_reset_game)
@@ -148,8 +181,10 @@ func _reset_game() -> void:
 		return
 	inventory = fresh_inventory
 	research = fresh_research
+	discovery_notice.clear()
 	laboratory.discovery.hide()
 	laboratory.discovery.pending.clear()
+	map_help.hide()
 	laboratory.setup(inventory, research)
 	preview_page.confirmation.hide()
 	preview_page.board.graph.finalized = true
@@ -176,12 +211,43 @@ func _build_preview(target: Control) -> void:
 	preview_page.return_requested.connect(_return_to_map)
 	preview_page.completed.connect(_assembly_completed)
 	preview_page.new_collection_requested.connect(_new_collection)
+	preview_page.collection_requested.connect(_open_collection)
+	preview_page.board.changed.connect(_discover_assembly)
+
+func _open_collection() -> void:
+	laboratory.discovery.show_collection()
+
+func _open_discovery(id: String) -> void:
+	if research.researched.has(id):
+		laboratory.discovery.show_substance(id)
+	elif id in research.available_elements:
+		laboratory.discovery.show_element(id)
+
+func _discover_assembly() -> void:
+	if preview_page.board.graph.finalized:
+		return
+	_discover_products(preview_page.board.graph.preview().products)
+
+func _discover_products(products: Dictionary) -> void:
+	var changed := false
+	var had_carbon: bool = "C" in research.available_elements
+	for substance in AlphaCatalog.load_data().substances:
+		if products.get(substance.id, 0) > 0 and research.discover(substance.id):
+			changed = true
+			discovery_notice.enqueue("Nová látka objavená!\n%s · %s\nPridaná do kolekcie." % [substance.display_formula,substance.name], substance.id)
+	if not had_carbon and "C" in research.available_elements:
+		discovery_notice.enqueue("Nový prvok · %d/%d\nObjavil si dve rôzne látky." % [research.threshold(),research.threshold()])
+		discovery_notice.enqueue("Nový prvok: C · Uhlík\nDostupný pri ďalšom zbere. Podrobnosti nájdeš v kolekcii.", "C")
+	if changed:
+		laboratory.refresh()
+		_save_progress()
 
 func _assembly_completed(result: Dictionary) -> void:
 	if reward_claimed or not preview_page.board.graph.finalized:
 		return
 	reward_claimed = true
 	inventory.credit(result.products)
+	_discover_products(result.products)
 	last_assembly_result = result.duplicate(true)
 	assembly_atoms.clear()
 	collection_map.cargo.clear()
@@ -198,6 +264,7 @@ func _new_collection() -> void:
 	if not preview_page.board.graph.finalized:
 		return
 	laboratory._reset_experiment()
+	laboratory.close_dialogs()
 	inventory.return_sample()
 	laboratory.hide()
 	reward_claimed = false
@@ -226,7 +293,7 @@ func _update_cargo(atoms: Array[Dictionary], capacity: int) -> void:
 	if "C" in research.available_elements:
 		cargo_label.text = "H %d  O %d  C %d  |  %d / %d" % [counts.H, counts.O, counts.C, atoms.size(), capacity]
 	finish_button.disabled = atoms.is_empty()
-	hint_label.text = "WASD / šípky · Pohyb a zber dotykom\nTyčky sú uchytenia, nie chemické väzby."
+	hint_label.text = "WASD / šípky · Zbieraj atómy dotykom, potom zvoľ K skladaniu.\nTyčky sú uchytenia, nie chemické väzby."
 	if atoms.size() >= capacity:
 		hint_label.text += "\nZberač je plný. Pokračuj k skladaniu."
 

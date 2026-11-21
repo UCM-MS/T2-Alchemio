@@ -29,6 +29,15 @@ func sample_id(sample: Dictionary) -> String:
 
 func investigate(sample: Dictionary) -> bool:
 	var id := sample_id(sample)
+	return discover(id)
+
+func discover(id: String) -> bool:
+	var available := false
+	for substance in Catalog.load_data().substances:
+		if substance.id == id and is_available(substance):
+			available = true
+	if not available:
+		return false
 	if id.is_empty() or researched.has(id):
 		return false
 	researched[id] = true

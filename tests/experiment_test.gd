@@ -23,17 +23,30 @@ func run_checks() -> void:
 	demo.step(100, water)
 	check(demo.temperature == 20 and demo.mode == "off", "Cooling stops at reference temperature")
 	demo.set_mode("heat", {"water":1,"oxygen":1})
-	check(demo.mode == "off", "Unsupported mixture cannot heat")
+	check(demo.mode == "heat", "Every nonempty sample can heat")
 	for sample in [{}, {"methane":1}, {"methane":1,"oxygen":1}, {"methane":1,"oxygen":2,"water":1}]:
 		var before: Dictionary = sample.duplicate(true)
 		check(not demo.react(sample) and sample == before, "Invalid reaction leaves contents unchanged")
 	var mixture := {"methane":3,"oxygen":7}
 	var elements_before := atoms_in(mixture)
-	check(demo.react(mixture), "Supported reaction runs")
+	demo.reset()
+	demo.set_mode("heat",mixture)
+	demo.step(13.9,mixture)
+	check(mixture == {"methane":3,"oxygen":7}, "No reaction below model threshold")
+	demo.step(0.1,mixture)
 	check(mixture == {"methane":2,"oxygen":5,"carbon_dioxide":1,"water":2}, "One batch consumes only stoichiometric amounts and retains excess")
 	check(atoms_in(mixture) == elements_before, "Reaction conserves H/O/C atoms")
 	var once: Dictionary = mixture.duplicate(true)
 	check(not demo.react(mixture) and mixture == once, "Product-containing mixture cannot rerun recipe")
+	var unsupported := {"methane":1,"oxygen":1}
+	var other = Experiment.new()
+	other.set_mode("heat",unsupported)
+	other.step(100,unsupported)
+	check(other.temperature == 600 and unsupported == {"methane":1,"oxygen":1}, "Unsupported mixture heats to model cap without creating substances")
+	var ready := {"methane":1,"oxygen":2}
+	other.set_mode("cool",ready)
+	other.step(1,ready)
+	check(ready == {"methane":1,"oxygen":2}, "Cooling above threshold cannot trigger reaction")
 	var main = load("res://scenes/main.tscn").instantiate()
 	main.persistence_enabled = false
 	root.add_child(main)
@@ -48,13 +61,19 @@ func run_checks() -> void:
 	main.preview_page.finalize_assembly()
 	var lab = main.laboratory
 	lab.set_process(false)
+	await process_frame
+	await process_frame
+	var flask_rect: Rect2 = lab.flask.get_global_rect()
 	lab.rows.water.button.pressed.emit()
+	await process_frame
+	await process_frame
+	check(lab.flask.get_global_rect() == flask_rect, "Adding last stock portion does not move or resize flask")
 	lab.heat_button.button_pressed = true
 	lab.heat_button.pressed.emit()
 	lab.experiment.step(15, main.inventory.sample)
 	lab._update_experiment()
 	check(lab.heat_button.button_pressed and not lab.cool_button.button_pressed, "Only burner is active")
-	check(main.research.researched.is_empty() and main.inventory.sample == {"water":1}, "Physical process creates no discoveries or products")
+	check(main.research.researched.size() == 1 and main.inventory.sample == {"water":1}, "Physical process creates no discoveries or products")
 	await screenshot("a6-boiling")
 	lab._set_tool("cool")
 	lab.experiment.step(1, main.inventory.sample)
@@ -62,6 +81,9 @@ func run_checks() -> void:
 	check(lab.cool_button.button_pressed and not lab.heat_button.button_pressed, "Only cooling is active")
 	await screenshot("a6-cooling")
 	lab.return_button.pressed.emit()
+	await process_frame
+	await process_frame
+	check(lab.flask.get_global_rect() == flask_rect, "Returning sample does not move or resize flask")
 	check(lab.experiment.mode == "off" and lab.experiment.temperature == 20, "Return resets experiment")
 	main.research.investigate({"water":1})
 	main.research.investigate({"oxygen":1})
@@ -69,14 +91,30 @@ func run_checks() -> void:
 	lab.refresh()
 	lab.rows.methane.button.pressed.emit()
 	lab.rows.oxygen.button.pressed.emit()
-	check(lab.reaction_button.disabled, "Insufficient oxygen disables ignition")
+	await process_frame
+	await process_frame
+	check(lab.flask.get_global_rect() == flask_rect, "Gas mixture and different hints keep flask bounds stable")
+	lab._set_tool("heat")
+	lab.experiment.step(20,main.inventory.sample)
+	check(main.inventory.sample == {"methane":1,"oxygen":1}, "Heating without enough oxygen does not react")
 	lab.rows.oxygen.button.pressed.emit()
-	check(not lab.reaction_button.disabled and lab.heat_button.disabled, "Valid batch enables ignition separately from water heater")
+	check(not lab.heat_button.disabled and not lab.cool_button.disabled, "Valid sample allows heating and cooling")
 	await screenshot("a6-reaction-ready")
-	lab.reaction_button.pressed.emit()
+	lab._set_tool("heat")
+	lab.experiment.step(14, main.inventory.sample)
 	check(main.inventory.sample == {"carbon_dioxide":1,"water":2}, "UI reaction produces correct sample")
-	check(main.research.researched.size() == 2, "Reaction does not auto-research products")
-	lab.reaction_button.pressed.emit()
+	check(lab.experiment.temperature == 300 and lab.experiment.mode == "off", "Automatic reaction retains temperature and switches off heating")
+	lab._update_experiment()
+	await screenshot("temperature-reaction-result")
+	await process_frame
+	check(lab.flask.get_global_rect() == flask_rect, "Reaction result and longer explanation preserve flask bounds")
+	var products: Dictionary = main.inventory.sample.duplicate(true)
+	lab._set_tool("cool")
+	lab.experiment.step(2,main.inventory.sample)
+	check(lab.experiment.temperature < 300 and main.inventory.sample == products, "Cooling products does not reverse chemistry")
+	check(main.research.researched.size() == 3 and main.research.researched.has("carbon_dioxide"), "Reaction discovers a new product automatically")
+	lab._set_tool("heat")
+	lab.experiment.step(14, main.inventory.sample)
 	check(main.inventory.sample == {"carbon_dioxide":1,"water":2}, "Repeated ignition does not duplicate products")
 	await screenshot("a6-reaction-result")
 	lab.new_collection_requested.emit()

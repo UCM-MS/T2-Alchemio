@@ -5,30 +5,9 @@ var body: VBoxContainer
 var current_id := ""
 var pending: Array[String] = []
 
-func show_research(id: String, first: bool, unlocked: bool) -> void:
-	pending.clear()
-	if unlocked:
-		pending.assign(["progress", "C"])
-	show_substance(id, first)
-
-func _advance() -> void:
-	if pending.is_empty():
-		return
-	var next: String = pending.pop_front()
-	if next == "progress":
-		_clear()
-		current_id = "progress"
-		title = "Výskum dokončený"
-		_label("Nový prvok · %d/%d" % [research.threshold(), research.threshold()], 28)
-		_label("Preskúmal si dve rôzne látky. Objavil si nový prvok!", 20)
-		popup_centered()
-	else:
-		show_element(next)
-
 func _ready() -> void:
+	exclusive = true
 	ok_button_text = "Zavrieť"
-	confirmed.connect(_advance)
-	canceled.connect(_advance)
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(570, 330)
 	add_child(scroll)
@@ -46,9 +25,9 @@ func show_collection() -> void:
 	_clear()
 	current_id = ""
 	title = "Kolekcia"
-	_label("Preskúmané látky · %d" % research.researched.size(), 24)
+	_label("Objavené látky · %d" % research.researched.size(), 24)
 	if research.researched.is_empty():
-		_label("Zatiaľ žiadne. Vlož jednu látku do banky a preskúmaj ju.", 18)
+		_label("Zatiaľ žiadne. Zostav správny model alebo vytvor látku reakciou.", 18)
 	for substance in Catalog.load_data().substances:
 		if research.researched.has(substance.id):
 			var button := Button.new()
@@ -72,11 +51,11 @@ func show_substance(id: String, first := false) -> void:
 			continue
 		_clear()
 		current_id = id
-		title = "Nový objav" if first else "Preskúmaná látka"
+		title = "Nový objav" if first else "Objavená látka"
 		_label("%s · %s" % [substance.display_formula, substance.name], 30)
 		_label(substance.fact, 20)
 		_label("Model väzieb: " + substance.model, 23)
-		_label("Preskúmané · vzorka zostáva v banke" if first else "Preskúmané", 17)
+		_label("Pridané do kolekcie" if first else "Objavené", 17)
 		_collection_back()
 		popup_centered()
 		return
@@ -102,7 +81,7 @@ func _collection_back() -> void:
 	if not pending.is_empty():
 		return
 	var back := Button.new()
-	back.text = "← Kolekcia"
+	back.text = "Kolekcia"
 	back.pressed.connect(show_collection)
 	body.add_child(back)
 

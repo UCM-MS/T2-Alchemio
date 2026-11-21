@@ -113,7 +113,7 @@ func run_checks() -> void:
 	await screenshot("res://artifacts/a2-result.png")
 	main._new_collection()
 	await process_frame
-	check(main.collection_map.cargo.is_empty() and main.collection_map.free_atoms.size() == 48, "Fresh collection is playable")
+	check(main.collection_map.cargo.is_empty() and main.collection_map.free_atoms.size() == 72, "New collection includes automatically unlocked carbon")
 	check(main.preview_page.board.graph.atoms.is_empty(), "New batch has no old atoms")
 	main.queue_free()
 	await process_frame

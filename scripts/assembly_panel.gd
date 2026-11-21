@@ -2,7 +2,9 @@ extends VBoxContainer
 signal return_requested
 signal completed(result: Dictionary)
 signal new_collection_requested
+signal collection_requested
 const BoardScene = preload("res://scenes/assembly_board.tscn")
+const HelpDialog = preload("res://scripts/help_dialog.gd")
 var board: Control
 var status: Label
 var notice: Label
@@ -14,10 +16,16 @@ var mode_buttons: Array[Button] = []
 var result: Dictionary = {}
 var heading: Label
 var instructions: Label
+var collection_button: Button
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 12)
-	heading = _label(self, "Zostav molekuly", 28)
+	var header := HBoxContainer.new()
+	add_child(header)
+	heading = _label(header, "Zostav molekuly", 28)
+	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	collection_button = _button(header, "Kolekcia")
+	collection_button.pressed.connect(func(): board.cancel_interaction(); collection_requested.emit())
 	instructions = _label(self, "Presuň atómy. Pre väzbu vyber jej typ a klikni na dva atómy.", 17)
 	controls = HBoxContainer.new()
 	controls.add_theme_constant_override("separation", 10)
@@ -32,6 +40,10 @@ func _ready() -> void:
 		mode_buttons.append(button)
 	var delete_button := _button(controls, "Odstrániť väzbu")
 	delete_button.pressed.connect(func(): board.delete_selected_bond())
+	var help_dialog := HelpDialog.new()
+	add_child(help_dialog)
+	var help := _button(controls, "? Pomoc")
+	help.pressed.connect(func(): help_dialog.open("Skladanie molekúl", "Presun: ťahaj atómy myšou. Atómy sa nesmú prekrývať.\n\nJednoduchá, Dvojitá a Trojitá určujú počet čiar medzi atómami. Vyber typ a klikni na dva atómy. Rovnaká dvojica zmení typ väzby.\n\nV režime Presun klikni na čiaru a stlač Delete alebo Odstrániť väzbu.\n\nZelené skupiny sú rozpoznané modely. Kontroluje sa celá spojená skupina aj typy väzieb; samotný počet atómov nestačí. Poloha a otočenie neovplyvnia výsledok.\n\nDokončiť skladanie pridá porcie do zásoby a otvorí laboratórium. Zvyšné atómy sa zahodia až po potvrdení. Stavba modelu nie je návodom na skutočnú chemickú syntézu."))
 	board = BoardScene.instantiate()
 	board.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	board.changed.connect(_update_status)
@@ -46,11 +58,12 @@ func _ready() -> void:
 	footer.name = "Footer"
 	footer.add_theme_constant_override("separation", 20)
 	add_child(footer)
-	var back := _button(footer, "← Späť na mapu")
+	var back := _button(footer, "Späť na mapu")
 	back.pressed.connect(func(): board.cancel_interaction(); return_requested.emit())
-	finish_button = _button(footer, "Dokončiť skladanie →")
+	finish_button = _button(footer, "Dokončiť skladanie")
 	finish_button.pressed.connect(request_finish)
 	confirmation = ConfirmationDialog.new()
+	confirmation.exclusive = true
 	confirmation.title = "Dokončiť skladanie?"
 	confirmation.ok_button_text = "Dokončiť"
 	confirmation.cancel_button_text = "Ešte upraviť"
@@ -119,7 +132,7 @@ func finalize_assembly() -> void:
 		_label(result_page, "Nebola rozpoznaná žiadna molekula.", 21)
 	_label(result_page, "Odhodené atómy: %d" % result.discarded_atoms.size(), 18)
 	_label(result_page, "Porcie boli pridané do zásoby.", 17)
-	var next := _button(result_page, "Nový zber →")
+	var next := _button(result_page, "Nový zber")
 	next.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	next.pressed.connect(func(): new_collection_requested.emit())
 	completed.emit(result.duplicate(true))

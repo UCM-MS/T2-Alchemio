@@ -10,74 +10,62 @@ func run_checks() -> void:
 	main.persistence_enabled = false
 	root.add_child(main)
 	await process_frame
-	await process_frame
 	main.collection_map.set_physics_process(false)
+	main.research.discovered.connect(func(id: String): discoveries.append(id))
 	for id in 6:
 		main.collection_map.collect_atom(id)
 	main.finish_button.pressed.emit()
-	main.preview_page.board.connect_atoms(0, 1, 1)
-	main.preview_page.board.connect_atoms(2, 1, 1)
-	main.preview_page.board.connect_atoms(3, 5, 2)
+	var board = main.preview_page.board
+	board.connect_atoms(0,1,1)
+	check(discoveries.is_empty(), "Incomplete model does not discover water")
+	board.connect_atoms(2,1,1)
+	check(discoveries == ["water"] and main.research.researched.has("water"), "Correct model discovers immediately before finish")
+	check(main.inventory.stock.water == 0 and not board.graph.finalized, "Discovery does not grant portions or finalize graph")
+	check(main.discovery_notice.visible and not main.laboratory.discovery.visible, "Notice is non-modal")
+	if DisplayServer.get_name() != "headless":
+		await process_frame
+		await process_frame
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("res://artifacts/automatic-discovery-assembly.png")
+	board.graph.remove_bond(board.graph.edge_key(0,1))
+	board._refresh()
+	board.connect_atoms(0,1,1)
+	check(discoveries == ["water"], "Breaking and rebuilding does not repeat discovery")
+	board.connect_atoms(3,5,2)
+	check(discoveries == ["water","oxygen"] and "C" in main.research.available_elements, "Two models unlock element automatically")
+	check(main.discovery_notice.pending.size() == 3, "Queue: second substance, progress and element")
 	main.preview_page.finalize_assembly()
-	var lab = main.laboratory
-	main.research.discovered.connect(func(id: String): discoveries.append(id))
-	check(lab.research_button.disabled, "Empty flask disables research")
-	lab._investigate()
-	check(main.research.researched.is_empty(), "Empty research has no effect")
-	lab.collection_button.pressed.emit()
-	check(lab.discovery.current_id.is_empty(), "Collection starts empty")
-	lab.discovery.hide()
-	lab.rows.water.button.pressed.emit()
-	check(not lab.research_button.disabled and lab.rows.water.status.text == "Nepreskúmané", "Collected is not researched")
-	lab.research_button.pressed.emit()
-	check(main.research.researched == {"water": true} and discoveries == ["water"], "First research adds one unique discovery")
-	check(main.inventory.sample == {"water": 1}, "Research does not consume sample")
-	check(lab.discovery.visible and lab.discovery.current_id == "water", "First research opens substance card")
-	await screenshot("a4-discovery")
-	lab.discovery.hide()
-	lab.research_button.pressed.emit()
-	check(discoveries == ["water"] and main.research.researched.size() == 1, "Repeated research has no new reward")
-	lab.discovery.hide()
-	lab.rows.oxygen.button.pressed.emit()
-	check(lab.research_button.disabled and not lab.research_hint.text.is_empty(), "Mixture disables research with explanation")
-	lab._investigate()
-	check(main.research.researched.size() == 1, "Mixture cannot add discovery through direct action")
-	await screenshot("a4-laboratory")
-	lab.return_button.pressed.emit()
-	main.inventory.credit({"oxygen": 1})
-	lab.refresh()
-	lab.rows.oxygen.button.pressed.emit()
-	lab.rows.oxygen.button.pressed.emit()
-	lab.research_button.pressed.emit()
-	check(main.research.researched.size() == 2 and discoveries == ["water", "oxygen"], "Several portions of one substance can be researched")
-	check(main.inventory.sample == {"oxygen": 2}, "Multiple portions remain intact")
-	lab.discovery.hide()
-	lab.return_button.pressed.emit()
-	lab.collection_button.pressed.emit()
-	check(main.research.researched.size() == 2, "Return does not erase collection")
-	await screenshot("a4-collection")
-	lab.discovery.show_substance("water")
-	check(lab.discovery.current_id == "water", "Collection reopens researched card without sample")
-	lab.discovery.hide()
-	lab.new_collection_requested.emit()
-	await process_frame
-	check(main.research.researched.size() == 2 and main.inventory.stock.oxygen == 2, "Discoveries and portions survive next collection")
-	check(not main.research.investigate({"unknown": 1}), "Unknown substance cannot be researched")
+	check(main.inventory.stock.water == 1 and discoveries.size() == 2, "Finish gives portions without repeating discoveries")
+	main.laboratory.rows.water.button.pressed.emit()
+	main.laboratory.research_button.pressed.emit()
+	check(main.laboratory.discovery.current_id == "water" and discoveries.size() == 2, "Optional button only displays known card")
+	main.laboratory.discovery.hide()
+	main.laboratory.return_button.pressed.emit()
+	main.inventory.credit({"methane":1,"oxygen":1})
+	main.laboratory.refresh()
+	main.laboratory.rows.methane.button.pressed.emit()
+	main.laboratory.rows.oxygen.button.pressed.emit()
+	main.laboratory.rows.oxygen.button.pressed.emit()
+	main.discovery_notice.clear()
+	main.laboratory._set_tool("heat")
+	main.laboratory.experiment.step(14, main.inventory.sample)
+	check(main.research.researched.has("carbon_dioxide") and discoveries == ["water","oxygen","carbon_dioxide"], "Reaction discovers only its new products")
+	check(main.inventory.sample == {"water":2,"carbon_dioxide":1}, "Reaction product portions remain correct")
+	if DisplayServer.get_name() != "headless":
+		await process_frame
+		await process_frame
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png("res://artifacts/automatic-discovery-reaction.png")
+	main.laboratory._set_tool("heat")
+	main.laboratory.experiment.step(14, main.inventory.sample)
+	check(discoveries.size() == 3, "Repeated ignition does not repeat discovery")
 	main.queue_free()
 	await process_frame
 	for failure in failures:
 		push_error(failure)
 	if failures.is_empty():
-		print("A4 PASS: unique discovery, repeated research, mixtures, multiple portions, no consumption, collection replay and cycle retention")
+		print("DISCOVERY PASS: immediate models, no premature portions, non-modal queue, deduplication, automatic unlock, reaction products")
 	quit(0 if failures.is_empty() else 1)
-
-func screenshot(filename: String) -> void:
-	if DisplayServer.get_name() == "headless":
-		return
-	await process_frame
-	await process_frame
-	await RenderingServer.frame_post_draw
-	root.get_texture().get_image().save_png("res://artifacts/%s.png" % filename)
 
 func check(condition: bool, message: String) -> void:
 	if not condition:
