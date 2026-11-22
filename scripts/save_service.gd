@@ -1,7 +1,7 @@
 extends RefCounted
 const Catalog = preload("res://scripts/catalog.gd")
-# A8 rejects unknown substance IDs. Its future-version guard protects beta saves.
-const VERSION := 2
+const VERSION := 3
+const REMOVED_SUBSTANCES := ["nitrogen", "ammonia"]
 const MAX_PORTIONS := 1000000000
 var path := "user://progress.json"
 var write_blocked := false
@@ -11,16 +11,23 @@ func snapshot(inventory: RefCounted, research: RefCounted) -> Dictionary:
 	for container in [inventory.sample, inventory.outlets]:
 		for id in container:
 			totals[id] += container[id]
-	return {"version": VERSION, "inventory": totals, "researched": research.researched.keys()}
+	return {
+		"version": VERSION,
+		"inventory": totals,
+		"researched": research.researched.keys(),
+		"completed_experiments": research.completed_experiments.keys(),
+		"legacy_carbon_unlocked": research.legacy_carbon_unlocked,
+	}
 
 func validate(value: Variant) -> Dictionary:
 	if not value is Dictionary:
 		return {}
 	var version: Variant = value.get("version")
-	if not (version is int or version is float) or (version != 1 and version != VERSION):
+	if not (version is int or version is float) or (version != 1 and version != 2 and version != VERSION):
 		return {}
 	if not value.get("inventory") is Dictionary or not value.get("researched") is Array:
 		return {}
+	var legacy: bool = version < VERSION
 	var known: Dictionary = {}
 	var catalog := Catalog.load_data()
 	for substance in catalog.substances:
@@ -30,23 +37,51 @@ func validate(value: Variant) -> Dictionary:
 		totals[id] = 0
 	for id in value.inventory:
 		var count: Variant = value.inventory[id]
-		if not known.has(id) or not (count is int or count is float):
+		if not (count is int or count is float):
 			return {}
 		if not is_finite(float(count)) or count < 0 or count > MAX_PORTIONS or float(count) != floorf(float(count)):
 			return {}
+		if legacy and id in REMOVED_SUBSTANCES:
+			continue
+		if not known.has(id):
+			return {}
 		totals[id] = int(count)
 	var researched: Dictionary = {}
+	var old_discoveries := {}
 	for id in value.researched:
+		if legacy and id in REMOVED_SUBSTANCES:
+			old_discoveries[id] = true
+			continue
 		if not id is String or not known.has(id):
 			return {}
 		researched[id] = true
-	var available := Catalog.unlocked_elements(catalog.elements, researched.size())
+		old_discoveries[id] = true
+	var completed := {}
+	var legacy_carbon: bool = old_discoveries.size() >= 2 if legacy else value.get("legacy_carbon_unlocked", false) == true
+	if not legacy:
+		if not value.get("completed_experiments") is Array or not value.get("legacy_carbon_unlocked", false) is bool:
+			return {}
+		for id in value.completed_experiments:
+			if not id is String or not catalog.experiments.has(id) or catalog.experiments[id].products.is_empty():
+				return {}
+			completed[id] = true
+	var available := Catalog.unlocked_elements(catalog.progression, completed, legacy_carbon)
+	for id in completed:
+		var required: String = catalog.experiments[id].get("requires_element", "")
+		if not required.is_empty() and required not in available:
+			return {}
 	for id in known:
 		if totals[id] > 0 or researched.has(id):
 			for symbol in known[id].atoms:
 				if symbol not in available:
 					return {}
-	return {"inventory": totals, "researched": researched, "available_elements": available}
+	return {
+		"inventory": totals,
+		"researched": researched,
+		"available_elements": available,
+		"completed_experiments": completed,
+		"legacy_carbon_unlocked": legacy_carbon,
+	}
 
 func _read(file_path: String) -> Variant:
 	var file := FileAccess.open(file_path, FileAccess.READ)

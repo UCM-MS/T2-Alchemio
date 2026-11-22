@@ -103,7 +103,7 @@ func request_finish() -> void:
 	board.cancel_interaction()
 	var preview: Dictionary = board.graph.preview()
 	if not preview.discarded_atoms.is_empty():
-		confirmation.dialog_text = "Zvyšné atómy (%d) sa odhodia. Zachovajú sa iba rozpoznané molekuly." % preview.discarded_atoms.size()
+		confirmation.dialog_text = "Zvyšné atómy (%d) sa odhodia. Zachovajú sa iba rozpoznané modely." % preview.discarded_atoms.size()
 		confirmation.popup_centered(Vector2i(540, 180))
 	else:
 		finalize_assembly()
@@ -129,7 +129,7 @@ func finalize_assembly() -> void:
 			var unit := "porcia" if count == 1 else ("porcie" if count < 5 else "porcií")
 			_label(result_page, "%s · %s   —   %d %s" % [template.name, template.display_formula, count, unit], 23)
 	if not any_products:
-		_label(result_page, "Nebola rozpoznaná žiadna molekula.", 21)
+		_label(result_page, "Nebol rozpoznaný žiadny model.", 21)
 	_label(result_page, "Odhodené atómy: %d" % result.discarded_atoms.size(), 18)
 	_label(result_page, "Porcie boli pridané do zásoby.", 17)
 	var next := _button(result_page, "Nový zber")
@@ -150,4 +150,3 @@ func _button(parent: Node, text: String) -> Button:
 	button.focus_mode = Control.FOCUS_NONE
 	parent.add_child(button)
 	return button
-

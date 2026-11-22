@@ -5,10 +5,10 @@ var failures: Array[String] = []
 
 func _initialize() -> void:
 	var data := Catalog.load_data()
-	check(data.get("schema_version") == 1, "Catalog schema")
-	check(data.get("elements", []).size() == 4, "Four elements including nitrogen")
-	check(data.get("substances", []).size() == 12, "Twelve substances")
-	var valences := {"H": 1, "O": 2, "C": 4, "N": 3}
+	check(data.get("schema_version") == 2, "Catalog schema")
+	check(data.elements.map(func(element): return element.id) == ["H", "O", "C"], "Three progression elements")
+	check(data.get("substances", []).size() == 13, "Thirteen substances")
+	var valences := {"H": 1, "O": 2, "C": 4}
 	var ids: Array[String] = []
 	for substance in data.get("substances", []):
 		check(not ids.has(substance["id"]), "Unique substance ID")
@@ -16,6 +16,8 @@ func _initialize() -> void:
 		var atoms: Array = substance["atoms"]
 		if substance.id == "carbon_monoxide":
 			check(substance.formal_charges.size() == 2 and int(substance.formal_charges[0]) == -1 and int(substance.formal_charges[1]) == 1, "CO formal charges belong to C and O")
+		if substance.id == "solid_carbon" or not substance.get("assembly", true):
+			continue
 		var sums: Array[int] = []
 		sums.resize(atoms.size())
 		sums.fill(0)
