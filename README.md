@@ -77,3 +77,5 @@ Laboratórium pracuje s vybranými školskými modelmi. Pri reakcii CH₄ + 2 O�
 - **Ikona projektu** používa logo Godot (© 2017 Andrea Calabró) pod licenciou CC BY 4.0. [Logo Godot](https://godotengine.org/press/) · [Licencia CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 - **Písmo Noto Sans** od The Noto Project Authors sa používa podľa licencie SIL Open Font License 1.1. [Priložený text licencie](assets/fonts/OFL.txt)
 - **Kód a pôvodný obsah hry Alchemio.** Pre túto časť projektu zatiaľ v repozitári nie je uvedená samostatná licencia.
+
+skuska
