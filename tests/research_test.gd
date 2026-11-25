@@ -34,6 +34,8 @@ func run_checks() -> void:
 	board.connect_atoms(3,5,2)
 	check(discoveries == ["water","oxygen"] and "C" not in main.research.available_elements, "Two models do not unlock carbon")
 	check(main.discovery_notice.pending.size() == 1, "Only the second substance was queued")
+	main.preview_page.board.pack_atom(0)
+	main.preview_page.board.pack_atom(3)
 	main.preview_page.finalize_assembly()
 	check(main.inventory.stock.water == 1 and discoveries.size() == 2, "Finish gives portions without repeating discoveries")
 	main.laboratory.rows.water.button.pressed.emit()

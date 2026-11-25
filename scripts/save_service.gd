@@ -1,6 +1,6 @@
 extends RefCounted
 const Catalog = preload("res://scripts/catalog.gd")
-const VERSION := 3
+const VERSION := 4
 const REMOVED_SUBSTANCES := ["nitrogen", "ammonia"]
 const MAX_PORTIONS := 1000000000
 var path := "user://progress.json"
@@ -23,14 +23,14 @@ func validate(value: Variant) -> Dictionary:
 	if not value is Dictionary:
 		return {}
 	var version: Variant = value.get("version")
-	if not (version is int or version is float) or (version != 1 and version != 2 and version != VERSION):
+	if not (version is int or version is float) or (version != 1 and version != 2 and version != 3 and version != VERSION):
 		return {}
 	if not value.get("inventory") is Dictionary or not value.get("researched") is Array:
 		return {}
-	var legacy: bool = version < VERSION
+	var legacy: bool = version < 3
 	var known: Dictionary = {}
 	var catalog := Catalog.load_data()
-	for substance in catalog.substances:
+	for substance in Catalog.stock_items(catalog):
 		known[substance.id] = substance
 	var totals: Dictionary = {}
 	for id in known:
@@ -52,7 +52,7 @@ func validate(value: Variant) -> Dictionary:
 		if legacy and id in REMOVED_SUBSTANCES:
 			old_discoveries[id] = true
 			continue
-		if not id is String or not known.has(id):
+		if not id is String or not known.has(id) or known[id].get("is_atom", false):
 			return {}
 		researched[id] = true
 		old_discoveries[id] = true

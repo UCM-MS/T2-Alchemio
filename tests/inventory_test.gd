@@ -19,6 +19,8 @@ func run_checks() -> void:
 		panel.board.connect_atoms(0, 1, 1)
 		panel.board.connect_atoms(2, 1, 1)
 		panel.board.connect_atoms(3, 5, 2)
+		panel.board.pack_atom(0)
+		panel.board.pack_atom(3)
 		panel.finalize_assembly()
 		check(main.laboratory.visible and not panel.visible, "Completion enters laboratory")
 		check(main.inventory.stock.hydrogen == 0 and main.inventory.stock.oxygen == cycle + 1 and main.inventory.stock.water == cycle + 1, "Rewards accumulate once per cycle")
@@ -56,6 +58,22 @@ func run_checks() -> void:
 		main.laboratory.return_button.pressed.emit()
 		check(main.inventory.sample.is_empty() and main.inventory.stock.water == cycle + 1, "Repeated return preserves total")
 		check(not main.inventory.add_to_sample("hydrogen"), "Empty stock cannot go negative")
+		main.inventory.credit({"H": 2})
+		main.laboratory.refresh()
+		var atom_card: Control = main.laboratory.rows.H.button
+		main.laboratory.cards_area.ensure_control_visible(atom_card)
+		await process_frame
+		await process_frame
+		await drag_card(atom_card, main.laboratory.waste_bin.get_global_rect().get_center())
+		check(main.inventory.stock.H == 1 and main.inventory.stock.hydrogen == 0, "Bin removes a single H atom")
+		var water_card: Control = main.laboratory.rows.water.button
+		main.laboratory.cards_area.ensure_control_visible(water_card)
+		await process_frame
+		await drag_card(water_card, main.laboratory.waste_bin.get_global_rect().get_center())
+		check(main.inventory.stock.water == cycle and main.research.researched.has("water"), "Bin removes one portion and preserves discovery")
+		main.inventory.credit({"water":1})
+		main.inventory.take_from_stock("H")
+		main.laboratory.refresh()
 		main.laboratory.rows.water.button.pressed.emit()
 		main.laboratory.new_collection_requested.emit()
 		await process_frame

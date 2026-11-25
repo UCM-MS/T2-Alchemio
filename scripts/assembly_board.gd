@@ -1,4 +1,5 @@
 extends Control
+signal inventory_changed
 signal changed
 signal feedback(message: String)
 signal bond_selection_changed(has_selection: bool)
@@ -12,6 +13,7 @@ const SHARED_ELECTRON_COLOR := Color("62afff")
 const ELECTRON_ORBIT_SECONDS := 6.0
 var graph = Graph.new()
 var positions: Dictionary = {}
+var inventory_target: PanelContainer
 var selected_bond := ""
 var bond_mode := false
 var drawing_bond := false
@@ -79,7 +81,7 @@ func _refresh() -> void:
 func _clamp_positions() -> void:
 	if size.x < 100 or size.y < 100:
 		return
-	for id in positions:
+	for id in graph.atoms:
 		positions[id] = _bounded(positions[id])
 	queue_redraw()
 
@@ -93,8 +95,8 @@ func _free_position(preferred: Vector2) -> Vector2:
 			candidates.append(Vector2(x, y))
 	for point in candidates:
 		var clear := true
-		for existing in positions.values():
-			if point.distance_to(existing) < RADIUS * 2 + 6:
+		for id in graph.atoms:
+			if positions.has(id) and point.distance_to(positions[id]) < RADIUS * 2 + 6:
 				clear = false
 				break
 		if clear:
@@ -102,7 +104,7 @@ func _free_position(preferred: Vector2) -> Vector2:
 	return preferred
 
 func _atom_at(point: Vector2) -> int:
-	for id in positions:
+	for id in graph.atoms:
 		if positions[id].distance_to(point) <= RADIUS:
 			return id
 	return -1
@@ -142,6 +144,15 @@ func _gui_input(event: InputEvent) -> void:
 									drag_start_positions[member] = positions[member]
 								break
 		else:
+			if dragging >= 0 and drag_moved and not drawing_bond and _over_inventory(event.position):
+				var id := dragging
+				# Dropping an inspected atom from a molecule packs the original whole model.
+				positions.merge(drag_start_positions, true)
+				drag_moved = false
+				_end_drag()
+				pack_atom(id)
+				accept_event()
+				return
 			var target_id := _atom_at(event.position)
 			if drawing_bond and drag_moved and target_id >= 0 and target_id != dragging:
 				var order: int = graph.order_between(dragging, target_id)
@@ -163,11 +174,55 @@ func _gui_input(event: InputEvent) -> void:
 				bond_cursor = event.position
 			else:
 				_move_dragged_atoms(target - drag_origin)
+				if inventory_target:
+					inventory_target.self_modulate = UI.MINT if _over_inventory(event.position) else Color.WHITE
 		queue_redraw()
 		accept_event()
 	elif event.is_action_pressed("delete_bond"):
 		delete_selected_bond()
 		accept_event()
+
+func _over_inventory(point: Vector2) -> bool:
+	return inventory_target != null and inventory_target.get_global_rect().has_point(get_global_transform() * point)
+
+func pack_atom(id: int) -> bool:
+	if not graph.pack_atom(id):
+		return false
+	cancel_interaction()
+	_refresh()
+	inventory_changed.emit()
+	return true
+
+func _return_positions(id: int, point: Vector2) -> Dictionary:
+	var members: Dictionary = graph.packed_items[id].atoms
+	var min_point := Vector2(INF, INF)
+	var max_point := Vector2(-INF, -INF)
+	for member in members:
+		min_point = min_point.min(positions[member])
+		max_point = max_point.max(positions[member])
+	var shift := (point - Vector2(positions[id])).clamp(_bounded(Vector2.ZERO) - min_point, _bounded(size) - max_point)
+	var placement := {}
+	for member in members:
+		var target: Vector2 = positions[member] + shift
+		if not target.is_equal_approx(_bounded(target)):
+			return {}
+		for other in graph.atoms:
+			if target.distance_to(positions[other]) < RADIUS * 2 + 6:
+				return {}
+		placement[member] = target
+	return placement
+
+func _can_drop_data(point: Vector2, data: Variant) -> bool:
+	return data is Dictionary and data.get("board") == self and graph.packed_items.has(data.get("id")) and not _return_positions(data.id, point).is_empty()
+
+func _drop_data(point: Vector2, data: Variant) -> void:
+	if not _can_drop_data(point, data):
+		return
+	var placement := _return_positions(data.id, point)
+	if graph.unpack(data.id):
+		positions.merge(placement, true)
+		_refresh()
+		inventory_changed.emit()
 
 func _move_dragged_atoms(offset: Vector2) -> void:
 	var top_left := Vector2(INF, INF)
@@ -180,6 +235,8 @@ func _move_dragged_atoms(offset: Vector2) -> void:
 		positions[id] = drag_start_positions[id] + bounded_offset
 
 func _end_drag() -> void:
+	if inventory_target:
+		inventory_target.self_modulate = Color.WHITE
 	if drag_moved and _drag_overlaps_other_atoms():
 		for id in drag_start_positions:
 			positions[id] = drag_start_positions[id]
@@ -190,7 +247,7 @@ func _end_drag() -> void:
 
 func _drag_overlaps_other_atoms() -> bool:
 	for member in drag_start_positions:
-		for id in positions:
+		for id in graph.atoms:
 			if not drag_start_positions.has(id) and positions[id].distance_to(positions[member]) < RADIUS * 2 + 6:
 				return true
 	return false

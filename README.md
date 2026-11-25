@@ -28,16 +28,17 @@ Webový balík sa distribuuje samostatne. Ak máš iba zdrojové súbory z repoz
 Skús si ako prvú molekulu poskladať **vodu (H₂O)** a priviesť ju v laboratóriu do varu.
 
 1. **Zozbieraj atómy.** Po mape sa pohybuj klávesmi **WASD** alebo **šípkami**. Dotkni sa dvoch atómov vodíka (**H**) a jedného atómu kyslíka (**O**). Unesieš najviac 12 atómov. Tyčky, ktoré na mape držia skupinu pokope, slúžia len na prenášanie. Keď máš potrebné atómy, klikni na **K skladaniu**.
-2. **Vytvor dve väzby.** V režime **Presun** si môžeš atómy rozmiestniť myšou. Vyber **Jednoduchá**, klikni na prvý H a potom na O. Rovnako spoj druhý H s tým istým O. Hra rozpozná model H–O–H, zvýrazní ho zelenou farbou a vodu hneď pridá do zbierky **Kolekcia**.
-3. **Získaj porciu vody.** Klikni na **Dokončiť skladanie**. Za každú dokončenú molekulu dostaneš do zásoby jednu hernú porciu látky. Ak ti zostali nevyužité atómy, hra si pred ich zahodením vypýta potvrdenie. Ak niečo chýba, cez **Späť na mapu** môžeš pokračovať v zbere.
+2. **Vytvor dve väzby.** V režime **Presun** si môžeš atómy rozmiestniť myšou. Vyber **Vytvoriť väzbu** a potiahni z prvého H na O. Rovnako spoj druhý H s tým istým O. Hra rozpozná model H–O–H, zvýrazní ho zelenou farbou a vodu hneď pridá do zbierky **Kolekcia**.
+3. **Získaj porciu vody.** Vyber **Presunúť atóm** a potiahni vodu z plochy do **Inventára**. Uložiť môžeš aj samostatný atóm. Kartu môžeš vrátiť na voľné miesto na ploche. Pri **Dokončiť skladanie** prenesieš do laboratória iba obsah inventára. Ak na ploche ostali atómy či molekuly, hra si pred ich zahodením vypýta potvrdenie.
 4. **Pozoruj var.** V laboratóriu vyber **Kvapaliny → Kadička** a pridaj porciu vody do prístroja. Zvoľ **Nahriať**. Pri tlaku 1 atm začne čistá voda v modeli vrieť približne pri 100 °C. Stlač **Ochladiť** a sleduj, kedy var prestane. Cez **Vrátiť obsah** vrátiš vzorku do zásoby.
 
 Pri ďalšom zbere skús spojiť dva atómy O väzbou **Dvojitá**. Po prvom úspešnom **spaľovaní vodíka** a prvej **elektrolýze vody** sa pri ďalšom zbere objaví aj uhlík (C).
 
 | Čo chceš urobiť | Ako na to |
 | --- | --- |
-| Zmeniť násobnosť väzby | Vyber **Jednoduchá**, **Dvojitá** alebo **Trojitá** a postupne klikni na oba spojené atómy. |
+| Zmeniť násobnosť väzby | S nástrojom **Vytvoriť väzbu** zopakuj ťah medzi spojenými atómami. |
 | Odstrániť väzbu | V režime **Presun** klikni na čiaru medzi atómami a stlač **Delete** alebo **Odstrániť väzbu**. |
+| Zahodiť porciu v laboratóriu | Potiahni kartu zo zásoby na **Zahodiť 1 porciu**. |
 | Prečítať si o látke | Otvor **Kolekcia** a vyber objavenú látku. |
 | Vrátiť sa z laboratória na mapu | Zvoľ **Nový zber**. Obsah prístroja sa vráti do zásoby. |
 | Zobraziť návod | V ktorejkoľvek fáze klikni na **? Pomoc**. |
@@ -54,7 +55,7 @@ Vo webovej verzii sa postup ukladá v prehliadači. Ak chceš pokračovať, pou�
 
 - **Etapa 1 · H a O.** Zostav H₂, O₂ a H₂O. Po spaľovaní vodíka odober vodu a použi ju pri elektrolýze. Oba dokončené pokusy odomknú uhlík. Var vody slúži na porovnanie a rozklad H₂O₂ je doplnkový pokus.
 - **Etapa 2 · C.** Porovnaj úplné a neúplné spaľovanie uhlíka. Priveď získaný CO₂ do vody a sleduj indikátor. Spaľovanie metánu je doplnkový pokus.
-- Staršie uloženia zachovávajú odomknutý uhlík, objavy a zásobu dostupných látok. Nový formát 3 ukladá aj dokončené pokusy.
+- Staršie uloženia zachovávajú odomknutý uhlík, objavy a zásobu dostupných látok. Formát 4 ukladá aj jednotlivé atómy v laboratórnej zásobe.
 
 **Čo je v pláne**
 

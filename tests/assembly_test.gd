@@ -32,7 +32,10 @@ func run_checks() -> void:
 	check(graph.preview().products == {"oxygen": 1}, "Invalid component is not recognized")
 	graph.remove_bond(graph.edge_key(12, 13))
 	check(graph.invalid_bonds().is_empty(), "Repair clears invalid flags")
-	check(graph.finalize() == result, "Final result equals preview")
+	graph.pack_atom(10)
+	graph.pack_atom(14)
+	var finalized: Dictionary = graph.finalize()
+	check(finalized.products == result.products and finalized.discarded_atoms == result.discarded_atoms, "Only packed molecules survive completion")
 	check(graph.finalize().is_empty() and graph.atoms.is_empty(), "Finalize consumes atoms exactly once")
 	check(not graph.set_bond(10, 11, 1), "Finalized graph cannot be edited")
 	var wrong = make_graph(["H", "H", "O"])
@@ -65,7 +68,7 @@ func run_checks() -> void:
 	await process_frame
 	var panel = main.preview_page
 	var board = panel.board
-	check(board.graph.atoms.size() == 6 and board.graph.bonds.is_empty(), "Cargo arrives without collection attachments")
+	check(board.graph.packed_items.is_empty() and board.graph.atoms.size() == 6 and board.graph.bonds.is_empty(), "Cargo arrives without collection attachments")
 	# Real viewport mouse events exercise dragging and selecting bonds.
 	var initial: Vector2 = board.positions[0]
 	await drag_board(board, initial, initial + Vector2(0, 90))
@@ -104,23 +107,33 @@ func run_checks() -> void:
 	check(board.graph.order_between(0, 1) == 0, "Delete removes selected bond through GUI")
 	board.connect_atoms(0, 1, 1)
 	# Separate molecules spatially to inspect green outlines, formulas and lines.
-	board.positions = {0: Vector2(150, 180), 1: Vector2(260, 140), 2: Vector2(370, 180), 3: Vector2(650, 160), 4: Vector2(480, 290), 5: Vector2(790, 160)}
+	board.positions = {0: Vector2(110, 125), 1: Vector2(200, 185), 2: Vector2(290, 125), 3: Vector2(400, 130), 4: Vector2(340, 236), 5: Vector2(505, 130)}
 	board.queue_redraw()
-	check(board.graph.preview().products == {"water": 1, "oxygen": 1}, "Positions do not change chemistry")
+	board.set_bond_mode(false)
+	var to_tray: Vector2 = board.get_global_transform().affine_inverse() * board.inventory_target.get_global_rect().get_center()
+	await drag_board(board, board.positions[0], to_tray)
+	check(board.graph.packed_items.has(0) and board.graph.atoms.size() == 3, "Dragging a molecule packs every member")
+	if board.graph.packed_items.has(0):
+		var card: Control = panel.stock.get_child(0)
+		var drop_point: Vector2 = board.get_global_transform() * Vector2(110, 125)
+		await drag_board(card, card.size / 2, card.get_global_transform().affine_inverse() * drop_point)
+		check(board.graph.packed_items.is_empty() and board.graph.preview().products.has("water"), "Dragging a card back restores its bonds")
+	board.pack_atom(0)
+	board.pack_atom(4)
 	main._return_to_map()
 	main.collection_map.collect_atom(6)
 	main.finish_button.pressed.emit()
-	check(board.graph.atoms.size() == 7 and board.graph.bonds.size() == 3, "Return and new cargo preserve assembly work")
+	check(board.graph.atoms.size() == 3 and board.graph.packed_items.size() == 2 and board.graph.bonds.size() == 1, "Map revisit preserves packed items and adds only new cargo")
 	await screenshot("res://artifacts/a2-assembly.png")
 	await click_control(panel.finish_button)
 	check(panel.confirmation.visible and not board.graph.finalized, "Leftovers require finish confirmation")
 	panel.confirmation.canceled.emit()
 	panel.confirmation.hide()
-	check(board.graph.atoms.size() == 7, "Cancel keeps all atoms")
+	check(board.graph.atoms.size() == 3 and board.graph.packed_items.size() == 2, "Cancel keeps both areas")
 	panel.request_finish()
 	panel.confirmation.confirmed.emit()
-	check(main.last_assembly_result.products == {"water": 1, "oxygen": 1}, "Completion delivers products")
-	check(main.last_assembly_result.discarded_atoms.size() == 2, "Completion reports leftovers")
+	check(main.last_assembly_result.products == {"water": 1, "H": 1} and main.inventory.stock.oxygen == 0, "Loose atom and packed water survive, oxygen left on the board is discarded")
+	check(main.last_assembly_result.discarded_atoms.size() == 3, "Completion reports leftovers")
 	check(main.collection_map.cargo.is_empty() and board.graph.atoms.is_empty(), "No reusable spent cargo")
 	var saved: Dictionary = main.last_assembly_result.duplicate(true)
 	panel.finalize_assembly()
@@ -130,6 +143,15 @@ func run_checks() -> void:
 	await process_frame
 	check(main.collection_map.cargo.is_empty() and main.collection_map.free_atoms.size() == 48, "Assembly alone does not unlock carbon")
 	check(main.preview_page.board.graph.atoms.is_empty(), "New batch has no old atoms")
+	for id in [0, 2]:
+		main.collection_map.collect_atom(id)
+	main.finish_button.pressed.emit()
+	var empty_pack = main.preview_page
+	empty_pack.board.connect_atoms(0, 2, 1)
+	empty_pack.request_finish()
+	check(empty_pack.confirmation.visible and main.research.researched.has("hydrogen"), "Empty inventory warns even for a recognized molecule")
+	empty_pack.confirmation.confirmed.emit()
+	check(main.last_assembly_result.products.is_empty() and main.last_assembly_result.discarded_atoms.size() == 2, "Finishing with an empty inventory discards the board")
 	main.queue_free()
 	await process_frame
 	if failures.is_empty():
@@ -164,10 +186,14 @@ func drag_board(board: Control, from: Vector2, to: Vector2) -> void:
 	root.push_input(down, true)
 	await process_frame
 	var motion := InputEventMouseMotion.new()
-	motion.position = transform * to
-	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
-	root.push_input(motion, true)
-	await process_frame
+	var start := transform * from
+	for point in [start.lerp(transform * to, 0.2), transform * to]:
+		motion = InputEventMouseMotion.new()
+		motion.position = point
+		motion.relative = point - start
+		motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+		root.push_input(motion, true)
+		await process_frame
 	var up := InputEventMouseButton.new()
 	up.position = transform * to
 	up.button_index = MOUSE_BUTTON_LEFT

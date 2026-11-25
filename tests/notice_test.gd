@@ -15,6 +15,7 @@ func run_checks() -> void:
 	main.finish_button.pressed.emit()
 	main.preview_page.board.connect_atoms(0,1,1)
 	main.preview_page.board.connect_atoms(2,1,1)
+	main.preview_page.board.pack_atom(0)
 	main.preview_page.finalize_assembly()
 	main.discovery_notice.clear()
 	main._new_collection()

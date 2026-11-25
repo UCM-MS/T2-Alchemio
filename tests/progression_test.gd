@@ -25,6 +25,9 @@ func run_checks() -> void:
 	board.connect_atoms(4, 6, 1)
 	board.connect_atoms(1, 3, 2)
 	check(board.graph.preview().products == {"hydrogen": 2, "oxygen": 1}, "Assemble reagents from collected atoms")
+	main.preview_page.board.pack_atom(0)
+	main.preview_page.board.pack_atom(4)
+	main.preview_page.board.pack_atom(1)
 	main.preview_page.finalize_assembly()
 	var lab = main.laboratory
 	check(main.research.researched.size() == 2 and unlocks.is_empty(), "Collecting two substances does not advance reaction progression")
@@ -64,6 +67,8 @@ func run_checks() -> void:
 		main.collection_map.collect_atom(id)
 	main.finish_button.pressed.emit()
 	check(main.preview_page.board.graph.preview().products == {"solid_carbon": 2}, "Carbon tokens become a solid sample")
+	main.preview_page.board.pack_atom(48)
+	main.preview_page.board.pack_atom(49)
 	main.preview_page.finalize_assembly()
 	lab._select_station("combustion")
 	check(_select(lab, "tube"), "Tube furnace unlocked")

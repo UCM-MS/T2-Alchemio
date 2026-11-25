@@ -6,7 +6,7 @@ var sample: Dictionary = {}
 var outlets: Dictionary = {}
 
 func _init() -> void:
-	for substance in Catalog.load_data().substances:
+	for substance in Catalog.stock_items(Catalog.load_data()):
 		stock[substance.id] = 0
 
 func credit(products: Dictionary) -> void:
@@ -15,10 +15,15 @@ func credit(products: Dictionary) -> void:
 		if count > 0:
 			stock[id] += count
 
-func add_to_sample(id: String) -> bool:
+func take_from_stock(id: String) -> bool:
 	if stock.get(id, 0) <= 0:
 		return false
 	stock[id] -= 1
+	return true
+
+func add_to_sample(id: String) -> bool:
+	if not take_from_stock(id):
+		return false
 	sample[id] = sample.get(id, 0) + 1
 	return true
 

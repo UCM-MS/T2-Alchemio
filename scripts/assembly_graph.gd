@@ -4,6 +4,8 @@ const Catalog = preload("res://scripts/catalog.gd")
 const VALENCE_LIMITS := {"H": 1, "O": 2, "N": 3, "C": 4}
 var atoms: Dictionary = {}
 var bonds: Dictionary = {}
+# Packed entries keep their original atom IDs and internal bonds for a return trip.
+var packed_items: Dictionary = {}
 var finalized := false
 var templates: Array = []
 
@@ -23,9 +25,12 @@ func configure_elements(elements: Array) -> void:
 func add_atoms(records: Array[Dictionary]) -> void:
 	if finalized:
 		return
+	var reserved := {}
+	for item in packed_items.values():
+		reserved.merge(item.atoms)
 	for record in records:
 		var id := int(record["id"])
-		if not atoms.has(id):
+		if not atoms.has(id) and not reserved.has(id):
 			atoms[id] = record.duplicate(true)
 
 func edge_key(a: int, b: int) -> String:
@@ -142,12 +147,52 @@ func preview() -> Dictionary:
 				used.append(atom_id)
 	return {"products": products, "discarded_atoms": discarded, "used_atom_ids": used}
 
+func pack_atom(id: int) -> bool:
+	if finalized or not atoms.has(id):
+		return false
+	var members := [id]
+	var stock_id: String = atoms[id].element
+	var formula := stock_id
+	for group in recognize():
+		if id in group.atom_ids and not group.substance.is_empty():
+			members = group.atom_ids
+			stock_id = group.substance.id
+			formula = group.substance.display_formula
+			break
+	var records := {}
+	var edges := {}
+	for member in members:
+		records[member] = atoms[member]
+		atoms.erase(member)
+	for key in bonds.keys():
+		var bond: Dictionary = bonds[key]
+		if records.has(bond.a) and records.has(bond.b):
+			edges[key] = bond
+		if records.has(bond.a) or records.has(bond.b):
+			bonds.erase(key)
+	packed_items[id] = {"stock_id": stock_id, "formula": formula, "atoms": records, "bonds": edges}
+	return true
+
+func unpack(id: int) -> bool:
+	if finalized or not packed_items.has(id):
+		return false
+	var item: Dictionary = packed_items[id]
+	atoms.merge(item.atoms)
+	bonds.merge(item.bonds)
+	packed_items.erase(id)
+	return true
+
 func finalize() -> Dictionary:
 	if finalized:
 		return {}
-	var result := preview()
+	var products := {}
+	var used: Array[int] = []
+	for item in packed_items.values():
+		products[item.stock_id] = products.get(item.stock_id, 0) + 1
+		used.append_array(item.atoms.keys())
+	var discarded := atoms.values().duplicate(true)
 	finalized = true
-	# The result owns independent copies; no atoms remain spendable in this graph.
 	atoms.clear()
 	bonds.clear()
-	return result
+	packed_items.clear()
+	return {"products": products, "discarded_atoms": discarded, "used_atom_ids": used}

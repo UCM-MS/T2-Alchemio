@@ -20,7 +20,7 @@ var boiling := false
 var time_remaining := 0.0
 
 func _init() -> void:
-	for substance in catalog.substances:
+	for substance in AlphaCatalog.stock_items(catalog):
 		formulas[substance.id] = substance.display_formula
 
 func quantities(portions: Dictionary) -> String:

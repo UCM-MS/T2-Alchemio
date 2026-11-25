@@ -18,6 +18,18 @@ static func load_data() -> Dictionary:
 		return {}
 	return parser.data
 
+# Single atoms with no substance model have their own stock ID (H versus H₂).
+static func stock_items(catalog: Dictionary) -> Array:
+	var items: Array = catalog.substances.duplicate()
+	var modeled := {}
+	for substance in catalog.substances:
+		if substance.atoms.size() == 1 and substance.get("assembly", true):
+			modeled[substance.atoms[0]] = true
+	for element in catalog.elements:
+		if element.symbol not in modeled:
+			items.append({"id": element.symbol, "name": element.name, "display_formula": element.symbol, "atoms": [element.symbol], "is_atom": true})
+	return items
+
 static func unlocked_elements(progression: Dictionary, completed: Dictionary, legacy_carbon := false) -> Array[String]:
 	var result: Array[String] = []
 	result.assign(progression.water.elements)

@@ -4,7 +4,7 @@ var formula: String
 var inventory: RefCounted
 
 func _get_drag_data(_position: Vector2) -> Variant:
-	if inventory.stock.get(substance_id, 0) <= 0:
+	if disabled or inventory == null or inventory.stock.get(substance_id, 0) <= 0:
 		return null
 	var preview := Label.new()
 	preview.text = "  %s · 1 porcia  " % formula

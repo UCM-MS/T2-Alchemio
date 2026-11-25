@@ -40,6 +40,8 @@ func run_checks() -> void:
 	main.preview_page.board.connect_atoms(2,1,1)
 	check(service.load_progress().data.researched.has("water") and service.load_progress().data.inventory.water == 0, "Immediate discovery saves before assembly grants portions")
 	main.preview_page.board.connect_atoms(3,5,2)
+	main.preview_page.board.pack_atom(0)
+	main.preview_page.board.pack_atom(3)
 	main.preview_page.finalize_assembly()
 	check(service.load_progress().data.inventory.water == 1, "Assembly auto-saves")
 	main.laboratory.rows.water.button.pressed.emit()
@@ -114,6 +116,13 @@ func run_checks() -> void:
 	migrated.queue_free()
 	await process_frame
 	await check_legacy_saves()
+	var v3 := service.validate({"version": 3, "researched": ["water", "oxygen"], "inventory": {"oxygen": 2}, "completed_experiments": []})
+	check(v3.inventory.O == 0 and v3.inventory.oxygen == 2 and "C" not in v3.available_elements, "V3 stock stays molecular and stage unlocks are preserved")
+	var atoms = Inventory.new()
+	atoms.credit({"O": 2, "oxygen": 1})
+	atoms.take_from_stock("O")
+	check(service.save_progress(atoms, Research.new()), "Save atomic stock after discarding one atom")
+	check(service.load_progress().data.inventory.O == 1 and service.load_progress().data.inventory.oxygen == 1, "Atomic oxygen survives reload separately from O₂")
 	# Leave a known checkpoint for the second OS-process read test.
 	var inventory = Inventory.new()
 	var research = Research.new()

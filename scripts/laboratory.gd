@@ -5,6 +5,7 @@ signal new_game_requested
 signal experiment_completed(id: String, products: Dictionary)
 
 const UI = preload("res://scripts/workspace_ui.gd")
+const WasteBin = preload("res://scripts/laboratory_bin.gd")
 const ReagentCard = preload("res://scripts/reagent_card.gd")
 const Apparatus = preload("res://scripts/laboratory_apparatus.gd")
 const DiscoveryPanel = preload("res://scripts/discovery_panel.gd")
@@ -14,6 +15,7 @@ const Experiment = preload("res://scripts/lab_experiment.gd")
 var experiment = Experiment.new()
 var inventory: RefCounted
 var research: RefCounted
+var waste_bin: Control
 var flask: Control
 var help_dialog: AcceptDialog
 var discovery: AcceptDialog
@@ -110,6 +112,9 @@ func _ready() -> void:
 	empty_label = UI.label(tray, "Prázdna zásoba", 16)
 	var cards := UI.scroll_column(tray)
 	cards_area = cards.get_parent()
+	waste_bin = WasteBin.new()
+	tray.add_child(waste_bin)
+	waste_bin.portion_dropped.connect(_discard_stock)
 	var canvas := UI.panel(workspace, UI.CANVAS)
 	canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var center := UI.column(canvas, 5)
@@ -175,7 +180,7 @@ func _ready() -> void:
 	experiment.process_changed.connect(_process_notice)
 	experiment.reaction_completed.connect(_reaction_completed)
 
-	for substance in experiment.catalog.substances:
+	for substance in AlphaCatalog.stock_items(experiment.catalog):
 		var button := ReagentCard.new()
 		button.substance_id = substance.id
 		button.formula = substance.display_formula
@@ -207,6 +212,7 @@ func setup(state: RefCounted, research_state: RefCounted) -> void:
 	research = research_state
 	discovery.research = research
 	flask.inventory = state
+	waste_bin.inventory = state
 	for row in rows.values():
 		row.button.inventory = state
 	station = "combustion"
@@ -222,6 +228,11 @@ func _add(id: String) -> void:
 		_reset_experiment()
 		progress_changed.emit()
 	refresh()
+
+func _discard_stock(id: String) -> void:
+	if not experiment.is_running() and inventory.take_from_stock(id):
+		refresh()
+		progress_changed.emit()
 
 func _return_sample() -> void:
 	inventory.return_sample()
@@ -366,15 +377,16 @@ func refresh() -> void:
 		row.row.visible = stock > 0
 		has_stock = has_stock or row.row.visible
 		row.label.text = "×%d" % stock
-		row.status.text = "Objavené" if research.researched.has(id) else ""
+		row.status.text = "Atóm" if id in research.available_elements else ("Objavené" if research.researched.has(id) else "")
 		row.button.disabled = experiment.is_running() or stock == 0
 		var count: int = inventory.sample.get(id, 0)
 		var output: int = inventory.outlets.get(id, 0)
 		total += stock + count + output
 		if count > 0:
 			contents.append("%s × %d" % [row.data.display_formula, count])
-		outlet_buttons[id].visible = output > 0
-		outlet_buttons[id].text = "Odobrať %s × %d" % [row.data.display_formula, output]
+		if id in outlet_buttons:
+			outlet_buttons[id].visible = output > 0
+			outlet_buttons[id].text = "Odobrať %s × %d" % [row.data.display_formula, output]
 	empty_label.visible = not has_stock
 	summary.text = "Celková zásoba: " + _portions(total)
 	sample_label.text = "Vzorka: " + (", ".join(contents) if not contents.is_empty() else "prázdna")

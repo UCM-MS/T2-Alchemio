@@ -4,7 +4,7 @@ var inventory: RefCounted
 var highlighted := false
 
 func _can_drop_data(_position: Vector2, data: Variant) -> bool:
-	var accepted: bool = data is Dictionary and data.get("type") == "laboratory_portion" and data.get("inventory") == inventory and inventory.stock.get(data.get("id"), 0) > 0
+	var accepted: bool = inventory != null and data is Dictionary and data.get("type") == "laboratory_portion" and data.get("inventory") == inventory and inventory.stock.get(data.get("id"), 0) > 0
 	if highlighted != accepted:
 		highlighted = accepted
 		queue_redraw()
