@@ -154,10 +154,14 @@ func transfer_item(id: int) -> Dictionary:
 	var stock_id: String = atoms[id].element
 	var formula := stock_id
 	for group in recognize():
-		if id in group.atom_ids and not group.substance.is_empty():
+		if id in group.atom_ids:
 			members = group.atom_ids
-			stock_id = group.substance.id
-			formula = group.substance.display_formula
+			if not group.substance.is_empty():
+				stock_id = group.substance.id
+				formula = group.substance.display_formula
+			elif members.size() > 1:
+				stock_id = ""
+				formula = "Nerozpoznaná zostava"
 			break
 	var records := {}
 	var edges := {}
@@ -171,7 +175,7 @@ func transfer_item(id: int) -> Dictionary:
 
 func pack_atom(id: int) -> bool:
 	var item := transfer_item(id)
-	if item.is_empty():
+	if item.is_empty() or item.stock_id.is_empty():
 		return false
 	for member in item.atoms:
 		atoms.erase(member)

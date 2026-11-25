@@ -184,7 +184,7 @@ func _begin_drag(event: InputEventMouseButton, right_button: bool) -> void:
 	drag_start_positions = {id: drag_origin}
 	if id != inspected_atom:
 		for group in recognized:
-			if not group.substance.is_empty() and id in group.atom_ids:
+			if id in group.atom_ids:
 				for member in group.atom_ids:
 					drag_start_positions[member] = positions[member]
 				break
@@ -201,7 +201,8 @@ func _finish_drag(point: Vector2) -> void:
 		# Pack the original model even if only its inspected atom was being moved.
 		positions.merge(drag_start_positions, true)
 		drag_moved = false
-		pack_atom(id)
+		if not pack_atom(id):
+			_end_drag()
 		return
 	elif not drag_moved and target_id == dragging:
 		if inspected_atom != dragging:
@@ -244,6 +245,8 @@ func _over_inventory(point: Vector2) -> bool:
 
 func pack_atom(id: int) -> bool:
 	if not graph.pack_atom(id):
+		if graph.atoms.has(id):
+			feedback.emit("Zostavu nemožno vložiť do inventára. Skontroluj zapojenie kovalentných väzieb.")
 		return false
 	cancel_interaction()
 	_refresh()

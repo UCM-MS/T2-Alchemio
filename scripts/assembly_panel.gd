@@ -7,15 +7,17 @@ const UI = preload("res://scripts/workspace_ui.gd")
 const DragPreview = preload("res://scripts/molecule_drag_preview.gd")
 const BoardScene = preload("res://scenes/assembly_board.tscn")
 const HelpDialog = preload("res://scripts/help_dialog.gd")
-const CONTROLS_HELP := """Klik na atóm ukáže vonkajšiu vrstvu, dvojklik všetky vrstvy. Podrž pravé tlačidlo myši na atóme a pusť ho nad druhým atómom. Rovnakým ťahom pridáš druhú a tretiu čiaru.
+const CONTROLS_HELP := """Ľavé tlačidlo
+Potiahni atóm alebo molekulu. Ak má atóm otvorené elektrónové vrstvy, presunie sa iba on. Klik ukáže vonkajšiu vrstvu, dvojklik všetky vrstvy.
 
-Kliknutím na čiaru vyberieš väzbu. Odstrániš ju tlačidlom Odstrániť väzbu alebo klávesom Delete. Ľavým tlačidlom potiahni rozkliknutý atóm, ak chceš pohnúť iba ním. Potiahnutím nerozkliknutého atómu presunieš celú rozpoznanú molekulu.
+Pravé tlačidlo
+Potiahni z jedného atómu na druhý a pusť. Opakovaním pridáš druhú a tretiu čiaru väzby.
 
-Zelený obrys označuje rozpoznaný model. Hra kontroluje, ktoré atómy sú spojené a akými väzbami. Polohu atómov môžeš meniť.
+Odstránenie väzby
+Klikni na čiaru a použi tlačidlo Odstrániť väzbu alebo kláves Delete.
 
-Ľavým tlačidlom potiahni atóm alebo rozpoznanú molekulu do inventára vľavo. Z nedokončeného modelu sa odpojí vybraný atóm. Kartu z inventára môžeš potiahnuť späť na voľné miesto na ploche.
-
-Do laboratória prenesieš iba obsah inventára. Dokončením skladania zahodíš všetko, čo ostalo na ploche."""
+Inventár
+Potiahni voľný atóm alebo rozpoznanú molekulu do inventára vľavo. Kartu môžeš potiahnuť späť na plochu. Do laboratória sa prenesie iba obsah inventára."""
 const DUET_IMAGE = preload("res://assets/hydrogen_duet.svg")
 const BOND_HELP := """Vľavo má každý vodík vo svojej jedinej vrstve jeden elektrón. Vpravo ich vodíky zdieľajú ako spoločný pár. Každý si započíta oba elektróny (duet). Jeden spoločný pár tvorí jednu jednoduchú kovalentnú väzbu H–H.
 
@@ -33,7 +35,7 @@ var result_page: VBoxContainer
 var delete_button: Button
 var result: Dictionary = {}
 var heading: Label
-var instructions: Label
+var assembly_goal: Label
 var collection_button: Button
 
 func _ready() -> void:
@@ -68,17 +70,12 @@ func _ready() -> void:
 	var sidebar := UI.panel(workspace)
 	sidebar.custom_minimum_size.x = 246
 	controls = UI.column(sidebar, 8)
-	UI.label(controls, "OVLÁDANIE", 13, UI.MUTED, true)
-	UI.label(controls, "Ľavé tlačidlo", 16, UI.TEXT, true)
-	UI.label(controls, "Presuň atóm alebo molekulu.", 14, UI.MUTED).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	UI.label(controls, "Pravé tlačidlo", 16, UI.TEXT, true)
-	UI.label(controls, "Potiahni medzi atómami. Opakovaním pridáš ďalšiu väzbu.", 14, UI.MUTED).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	assembly_goal = UI.label(controls, "", 14, UI.MUTED)
+	assembly_goal.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	delete_button = UI.button(controls, "×    Odstrániť väzbu")
 	delete_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	delete_button.hide()
 	delete_button.pressed.connect(func(): board.delete_selected_bond())
-	instructions = UI.label(controls, "", 14, UI.MUTED)
-	instructions.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var help_dialog := HelpDialog.new()
 	add_child(help_dialog)
 	help_dialog.illustration.texture = DUET_IMAGE
@@ -86,12 +83,12 @@ func _ready() -> void:
 	help.pressed.connect(func():
 		help_arrow.text = "Kovalentná väzba →"
 		help_dialog.illustration.hide()
-		help_dialog.open("Skladanie molekúl", CONTROLS_HELP)
+		help_dialog.open("Ovládanie", CONTROLS_HELP)
 	)
 	help_arrow.pressed.connect(func():
 		var show_bonds := help_dialog.title != "Kovalentná väzba"
 		help_arrow.text = "← Ovládanie" if show_bonds else "Kovalentná väzba →"
-		help_dialog.title = "Kovalentná väzba" if show_bonds else "Skladanie molekúl"
+		help_dialog.title = "Kovalentná väzba" if show_bonds else "Ovládanie"
 		help_dialog.text_label.text = BOND_HELP if show_bonds else CONTROLS_HELP
 		help_dialog.illustration.visible = show_bonds
 		help_dialog.scroll.scroll_vertical = 0
@@ -201,7 +198,6 @@ func finalize_assembly() -> void:
 	workspace.hide()
 	result_page.show()
 	heading.text = "Výsledok skladania"
-	instructions.hide()
 	for id in result.products:
 		_label(result_page, "%s × %d" % [stock_names[id], result.products[id]], 23)
 	if result.products.is_empty():

@@ -112,6 +112,16 @@ func run_checks() -> void:
 	board.positions = {0: Vector2(110, 125), 1: Vector2(200, 185), 2: Vector2(290, 125), 3: Vector2(400, 130), 4: Vector2(340, 236), 5: Vector2(505, 130)}
 	board.queue_redraw()
 	var to_tray: Vector2 = board.get_global_transform().affine_inverse() * board.inventory_target.get_global_rect().get_center()
+	board.connect_atoms(0, 1, 2)
+	var partial_start: Dictionary = board.positions.duplicate()
+	await drag_board(board, board.positions[0], board.positions[0] + Vector2(0, 32))
+	check(board.positions[2] == partial_start[2] + Vector2(0, 32), "Unrecognized connected atoms move together")
+	partial_start = board.positions.duplicate()
+	await drag_board(board, board.positions[0], to_tray)
+	check(board.positions == partial_start and board.graph.packed_items.is_empty() and board.graph.order_between(0, 1) == 2, "Invalid drop restores positions and preserves bonds")
+	check(board.drag_preview == null, "Invalid drop clears cursor preview")
+	board.connect_atoms(0, 1, 1)
+	board.positions = {0: Vector2(110, 125), 1: Vector2(200, 185), 2: Vector2(290, 125), 3: Vector2(400, 130), 4: Vector2(340, 236), 5: Vector2(505, 130)}
 	await hold_drag(board, board.positions[0], to_tray, MOUSE_BUTTON_LEFT)
 	check(board.drag_preview != null and board.drag_preview.is_visible_in_tree(), "The carried molecule stays visible over the inventory")
 	if board.drag_preview:

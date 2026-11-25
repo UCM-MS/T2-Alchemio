@@ -209,7 +209,7 @@ func _build_preview(target: Control) -> void:
 	preview_page.hide()
 	target.add_child(preview_page)
 	preview_page.board.graph.configure_elements(research.available_elements)
-	preview_page.instructions.text = research.assembly_goal()
+	preview_page.assembly_goal.text = research.assembly_goal()
 	preview_page.return_requested.connect(_return_to_map)
 	preview_page.completed.connect(_assembly_completed)
 	preview_page.new_collection_requested.connect(_new_collection)
