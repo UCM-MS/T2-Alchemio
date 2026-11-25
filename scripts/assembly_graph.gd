@@ -13,7 +13,7 @@ func _init() -> void:
 func configure_elements(elements: Array) -> void:
 	templates.clear()
 	for substance in Catalog.load_data()["substances"]:
-		var available := true
+		var available: bool = substance.get("assembly", true)
 		for symbol in substance.atoms:
 			if symbol not in elements:
 				available = false

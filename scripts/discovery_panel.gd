@@ -71,7 +71,7 @@ func show_element(id: String) -> void:
 		title = "Prvok"
 		_label("%s · %s" % [element.symbol, element.name], 30)
 		_label("Atómové číslo: %d\nRelatívna atómová hmotnosť: približne %s\nSkupina: %d · Perióda: %d" % [element.atomic_number, str(element.relative_atomic_mass), element.group, element.period], 20)
-		if element.discoveries_required > 0:
+		if element.id == "C":
 			_label("Zberač teraz rozpoznáva prvok %s. Nájdeš ho pri ďalšom zbere." % element.symbol, 18)
 		_collection_back()
 		popup_centered()

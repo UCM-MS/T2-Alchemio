@@ -18,9 +18,13 @@ static func load_data() -> Dictionary:
 		return {}
 	return parser.data
 
-static func unlocked_elements(elements: Array, discovery_count: int) -> Array[String]:
+static func unlocked_elements(progression: Dictionary, completed: Dictionary, legacy_carbon := false) -> Array[String]:
 	var result: Array[String] = []
-	for element in elements:
-		if discovery_count >= int(element.discoveries_required):
-			result.append(element.id)
+	result.assign(progression.water.elements)
+	var can_unlock_carbon := true
+	for id in progression.water.required:
+		if not completed.has(id):
+			can_unlock_carbon = false
+	if legacy_carbon or can_unlock_carbon:
+		result.append_array(progression.carbon.elements)
 	return result

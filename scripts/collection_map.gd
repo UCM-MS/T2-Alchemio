@@ -40,10 +40,9 @@ func _ready() -> void:
 	free_atoms[0].position = collector.position + Vector2(110, -15)
 	free_atoms[1].position = collector.position + Vector2(-110, 15)
 	for element in data.elements:
-		if element.discoveries_required == 0 or element.id not in available_elements:
+		if element.id != "C" or element.id not in available_elements:
 			continue
-		var is_carbon: bool = element.id == "C"
-		var origin := Vector2(330, 325) if is_carbon else Vector2(125, 270)
+		var origin := Vector2(330, 325)
 		var first_id := free_atoms.size()
 		for i in 24:
 			var atom := Atom.new()
@@ -51,7 +50,7 @@ func _ready() -> void:
 			atom.position = origin + Vector2((i % 8) * 290, floori(i / 8.0) * 430)
 			add_child(atom)
 			free_atoms[first_id + i] = atom
-		free_atoms[first_id].position = collector.position + Vector2(0, 130 if is_carbon else -130)
+		free_atoms[first_id].position = collector.position + Vector2(0, 130)
 	cargo_changed.emit(cargo.duplicate(true), capacity)
 	queue_redraw()
 

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "locale": "sk",
   "elements": [
     {
@@ -11,7 +11,6 @@
       "mass_uncertainty": 0.0002,
       "group": 1,
       "period": 1,
-      "discoveries_required": 0,
       "color": "c8e9f2",
       "source": "https://www.ciaaw.org/abridged-atomic-weights.htm"
     },
@@ -24,7 +23,6 @@
       "mass_uncertainty": 0.001,
       "group": 16,
       "period": 2,
-      "discoveries_required": 0,
       "color": "ff8a80",
       "source": "https://www.ciaaw.org/abridged-atomic-weights.htm"
     },
@@ -37,21 +35,7 @@
       "mass_uncertainty": 0.002,
       "group": 14,
       "period": 2,
-      "discoveries_required": 2,
       "color": "a5b4cb",
-      "source": "https://www.ciaaw.org/abridged-atomic-weights.htm"
-    },
-    {
-      "id": "N",
-      "symbol": "N",
-      "name": "Dusík",
-      "atomic_number": 7,
-      "relative_atomic_mass": 14.007,
-      "mass_uncertainty": 0.001,
-      "group": 15,
-      "period": 2,
-      "discoveries_required": 4,
-      "color": "87acff",
       "source": "https://www.ciaaw.org/abridged-atomic-weights.htm"
     }
   ],
@@ -126,6 +110,53 @@
       "model": "H–O–H"
     },
     {
+      "id": "hydrogen_peroxide",
+      "name": "Peroxid vodíka",
+      "formula": "H2O2",
+      "display_formula": "H₂O₂",
+      "atoms": [
+        "H",
+        "O",
+        "O",
+        "H"
+      ],
+      "bonds": [
+        [
+          0,
+          1,
+          1
+        ],
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          2,
+          3,
+          1
+        ]
+      ],
+      "state_at_room_conditions": "liquid",
+      "fact": "Peroxid vodíka sa rozkladá na vodu a kyslík. Katalyzátor môže rozklad urýchliť.",
+      "source": "https://edu.rsc.org/experiments/hydrogen-peroxide-decomposition-using-different-catalysts/831.article",
+      "model": "H–O–O–H"
+    },
+    {
+      "id": "solid_carbon",
+      "name": "Tuhý uhlík",
+      "formula": "C",
+      "display_formula": "C",
+      "atoms": [
+        "C"
+      ],
+      "bonds": [],
+      "state_at_room_conditions": "solid",
+      "fact": "Pri skladaní značka C predstavuje jednu hernú porciu tuhého uhlíka, napríklad grafitu.",
+      "source": "https://edu.rsc.org/cpd/chemical-formulas-and-equations/3010001.article",
+      "model": "V grafite sú atómy C usporiadané vo vrstvách."
+    },
+    {
       "id": "carbon_dioxide",
       "name": "Oxid uhličitý",
       "formula": "CO2",
@@ -176,6 +207,26 @@
       "state_at_room_conditions": "gas",
       "fact": "CO obsahuje jeden atóm C a jeden O. Lewisov model má trojitú väzbu a formálne náboje C −1, O +1; celá molekula je neutrálna.",
       "source": "https://webbook.nist.gov/cgi/cbook.cgi?ID=C630080&Units=SI"
+    },
+    {
+      "id": "carbonated_water",
+      "name": "Sýtená voda",
+      "formula": "H2O + CO2(aq)",
+      "display_formula": "H₂O + CO₂(aq)",
+      "atoms": [
+        "H",
+        "H",
+        "O",
+        "C",
+        "O",
+        "O"
+      ],
+      "bonds": [],
+      "assembly": false,
+      "state_at_room_conditions": "liquid",
+      "fact": "Časť rozpusteného CO₂ reaguje s vodou za vzniku kyseliny uhličitej. Roztok je kyslejší.",
+      "source": "https://edu.rsc.org/experiments/equilibria-involving-carbon-dioxide-in-aqueous-solution/1728.article",
+      "model": "CO₂(aq) + H₂O ⇌ H₂CO₃(aq)"
     },
     {
       "id": "methane",
@@ -419,68 +470,204 @@
       "state_at_room_conditions": "liquid",
       "fact": "Kyselina octová má dva atómy uhlíka a skupinu –C(=O)–OH.",
       "source": "https://webbook.nist.gov/cgi/cbook.cgi?ID=C64197&Units=SI"
-    },
-    {
-      "id": "nitrogen",
-      "name": "Dusík",
-      "formula": "N2",
-      "display_formula": "N₂",
-      "atoms": ["N", "N"],
-      "bonds": [[0, 1, 3]],
-      "model": "N≡N",
-      "state_at_room_conditions": "gas",
-      "fact": "Molekulu dusíka tvoria dva atómy spojené trojitou väzbou.",
-      "source": "https://openstax.org/books/microbiology/pages/8-7-biogeochemical-cycles"
-    },
-    {
-      "id": "ammonia",
-      "name": "Amoniak",
-      "formula": "NH3",
-      "display_formula": "NH₃",
-      "atoms": ["N", "H", "H", "H"],
-      "bonds": [[0, 1, 1], [0, 2, 1], [0, 3, 1]],
-      "model": "Tri jednoduché väzby N–H",
-      "state_at_room_conditions": "gas",
-      "fact": "V molekule amoniaku je každý z troch atómov vodíka spojený s atómom dusíka jednou jednoduchou väzbou.",
-      "source": "https://openstax.org/books/chemistry-atoms-first-2e/pages/18-5-occurrence-preparation-and-compounds-of-hydrogen"
     }
   ],
-  "reactions": {
-    "flask": {
-      "id": "combustion",
-      "instrument_name": "Banka s ohrevom",
-      "reactants": {"methane": 1, "oxygen": 2},
-      "products": {"carbon_dioxide": 1, "water": 2},
-      "trigger": "heat",
-      "temperature": 300,
-      "explanation": "Pri úplnom spaľovaní metánu vznikajú oxid uhličitý a voda. Ohrev sa vypol, produkty môžeš ochladiť."
-    },
-    "electrolyzer": {
-      "id": "electrolysis",
-      "instrument_name": "Elektrolyzér",
-      "reactants": {"water": 2},
-      "products": {"hydrogen": 2, "oxygen": 1},
-      "trigger": "current",
-      "action": "Zapnúť prúd",
-      "separate_outputs": true,
-      "condition": "Elektrický prúd rozkladá vodu. Každý plyn má vlastný výstup.",
-      "explanation": "Z vody vznikli dva plyny. Kliknutím na výstup presunieš príslušný plyn do zásoby."
-    },
-    "reactor": {
-      "id": "ammonia_synthesis",
-      "instrument_name": "Reaktor na syntézu amoniaku",
-      "requires_element": "N",
-      "reactants": {"nitrogen": 1, "hydrogen": 3},
-      "products": {"ammonia": 2},
-      "trigger": "synthesis",
-      "action": "Spustiť syntézu",
-      "reversible": true,
-      "condition": "Model priemyselného reaktora so zvýšeným tlakom, ohrevom a katalyzátorom.",
-      "explanation": "Šípky označujú oba smery reakcie. Hra ukazuje jeden krok tvorby amoniaku. Skutočný výťažok závisí od rovnováhy."
-    }
-  },
   "collection": {
     "capacity": 13
   },
-  "model_note": "Stavba modelu molekuly nie je návod na chemickú syntézu."
+  "model_note": "Stavba modelu molekuly nie je návod na chemickú syntézu.",
+  "progression": {
+    "water": {
+      "elements": [
+        "H",
+        "O"
+      ],
+      "required": [
+        "hydrogen_combustion",
+        "electrolysis"
+      ],
+      "assembly_targets": [
+        "hydrogen",
+        "oxygen",
+        "water",
+        "hydrogen_peroxide"
+      ]
+    },
+    "carbon": {
+      "elements": [
+        "C"
+      ],
+      "required": [
+        "carbon_combustion",
+        "carbon_incomplete",
+        "carbonation"
+      ],
+      "assembly_targets": [
+        "solid_carbon",
+        "carbon_dioxide",
+        "methane"
+      ]
+    }
+  },
+  "instruments": {
+    "beaker": {
+      "name": "Kadička",
+      "station": "liquid",
+      "actions": [
+        "catalyst",
+        "gas"
+      ],
+      "instruction": "Vlož vzorku. Podľa látok ju môžeš nahriať, pridať katalyzátor alebo zaviesť plyn."
+    },
+    "electrodes": {
+      "name": "Elektrolyzér",
+      "station": "liquid",
+      "actions": [
+        "current"
+      ],
+      "instruction": "Vlož vodu a zapni prúd. Výstupy plynov sú oddelené."
+    },
+    "burner": {
+      "name": "Plynový horák",
+      "station": "combustion",
+      "actions": [
+        "ignite"
+      ],
+      "instruction": "Pridaj plynné palivo a kyslík. V jednom pokuse použi jeden druh paliva."
+    },
+    "tube": {
+      "name": "Trubicová pec",
+      "station": "combustion",
+      "requires_element": "C",
+      "actions": [
+        "furnace"
+      ],
+      "instruction": "Pridaj tuhú vzorku a kyslík. Porovnaj produkty pri rozdielnom množstve kyslíka."
+    }
+  },
+  "actions": {
+    "catalyst": {
+      "name": "Pridať katalyzátor"
+    },
+    "gas": {
+      "name": "Zaviesť plyn",
+      "requires_element": "C"
+    },
+    "current": {
+      "name": "Zapnúť prúd"
+    },
+    "ignite": {
+      "name": "Zapáliť"
+    },
+    "furnace": {
+      "name": "Nahriať vzorku"
+    }
+  },
+  "experiments": {
+    "hydrogen_combustion": {
+      "name": "Spaľovanie vodíka",
+      "apparatus": "burner",
+      "reactants": {
+        "hydrogen": 2,
+        "oxygen": 1
+      },
+      "products": {
+        "water": 2
+      },
+      "action": "ignite",
+      "explanation": "Z vodíka a kyslíka vznikla voda. Na chladnej ploche sa para zmenila na kvapky."
+    },
+    "electrolysis": {
+      "name": "Elektrolýza vody",
+      "apparatus": "electrodes",
+      "reactants": {
+        "water": 2
+      },
+      "products": {
+        "hydrogen": 2,
+        "oxygen": 1
+      },
+      "action": "current",
+      "explanation": "Objem vodíka je približne dvojnásobný oproti objemu kyslíka."
+    },
+    "boiling": {
+      "name": "Var vody",
+      "apparatus": "beaker",
+      "reactants": {
+        "water": 1
+      },
+      "products": {}
+    },
+    "peroxide_decomposition": {
+      "name": "Rozklad peroxidu vodíka",
+      "apparatus": "beaker",
+      "reactants": {
+        "hydrogen_peroxide": 2
+      },
+      "products": {
+        "water": 2,
+        "oxygen": 1
+      },
+      "action": "catalyst",
+      "explanation": "Katalyzátor urýchlil rozklad. Vznikli kyslík a voda."
+    },
+    "carbon_combustion": {
+      "name": "Úplné spaľovanie uhlíka",
+      "apparatus": "tube",
+      "requires_element": "C",
+      "reactants": {
+        "solid_carbon": 1,
+        "oxygen": 1
+      },
+      "products": {
+        "carbon_dioxide": 1
+      },
+      "action": "furnace",
+      "explanation": "Pri dostatku kyslíka vznikol oxid uhličitý."
+    },
+    "carbon_incomplete": {
+      "name": "Neúplné spaľovanie uhlíka",
+      "apparatus": "tube",
+      "requires_element": "C",
+      "reactants": {
+        "solid_carbon": 2,
+        "oxygen": 1
+      },
+      "products": {
+        "carbon_monoxide": 2
+      },
+      "action": "furnace",
+      "explanation": "Pri obmedzenom množstve kyslíka vzniká oxid uhoľnatý. Výsledok môže obsahovať aj oxid uhličitý. CO je bezfarebný a jedovatý."
+    },
+    "carbonation": {
+      "name": "Oxid uhličitý vo vode",
+      "apparatus": "beaker",
+      "requires_element": "C",
+      "reactants": {
+        "carbon_dioxide": 1,
+        "water": 1
+      },
+      "products": {
+        "carbonated_water": 1
+      },
+      "equation": "CO₂(aq) + H₂O ⇌ H₂CO₃(aq)",
+      "action": "gas",
+      "explanation": "Časť rozpusteného CO₂ tvorí kyselinu uhličitú. Indikátor ukazuje pokles pH."
+    },
+    "combustion": {
+      "name": "Spaľovanie metánu",
+      "apparatus": "burner",
+      "requires_element": "C",
+      "reactants": {
+        "methane": 1,
+        "oxygen": 2
+      },
+      "products": {
+        "carbon_dioxide": 1,
+        "water": 2
+      },
+      "action": "ignite",
+      "explanation": "Pri úplnom spaľovaní metánu vzniká CO₂ a vodná para. Na chladnej ploche vidíš kvapky."
+    }
+  }
 }
