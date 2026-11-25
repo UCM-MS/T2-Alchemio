@@ -4,6 +4,7 @@ signal completed(result: Dictionary)
 signal new_collection_requested
 signal collection_requested
 const UI = preload("res://scripts/workspace_ui.gd")
+const DragPreview = preload("res://scripts/molecule_drag_preview.gd")
 const BoardScene = preload("res://scenes/assembly_board.tscn")
 const HelpDialog = preload("res://scripts/help_dialog.gd")
 const CONTROLS_HELP := """Klik na atóm ukáže vonkajšiu vrstvu, dvojklik všetky vrstvy. Podrž pravé tlačidlo myši na atóme a pusť ho nad druhým atómom. Rovnakým ťahom pridáš druhú a tretiu čiaru.
@@ -151,7 +152,7 @@ func _refresh_stock() -> void:
 		card.custom_minimum_size.y = 72
 		card.mouse_default_cursor_shape = Control.CURSOR_DRAG
 		card.tooltip_text = "Potiahni jednu položku späť na voľné miesto na ploche."
-		card.set_drag_forwarding(_drag_stored.bind(first, formula, card), Callable(), Callable())
+		card.set_drag_forwarding(_drag_stored.bind(first, card), Callable(), Callable())
 		var line := UI.row(card, 6)
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		UI.badge(line, formula, 42)
@@ -160,11 +161,10 @@ func _refresh_stock() -> void:
 		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		UI.label(line, "×%d" % stacks[stock_id].size(), 16, UI.MUTED)
 
-func _drag_stored(_point: Vector2, id: int, formula: String, card: Control) -> Variant:
+func _drag_stored(_point: Vector2, id: int, card: Control) -> Variant:
 	if not board.graph.packed_items.has(id):
 		return null
-	var preview := Label.new()
-	preview.text = formula
+	var preview := DragPreview.new(board.graph.packed_items[id], board.positions, board.RADIUS)
 	card.set_drag_preview(preview)
 	return {"board": board, "id": id}
 

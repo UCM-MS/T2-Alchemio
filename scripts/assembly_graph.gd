@@ -147,9 +147,9 @@ func preview() -> Dictionary:
 				used.append(atom_id)
 	return {"products": products, "discarded_atoms": discarded, "used_atom_ids": used}
 
-func pack_atom(id: int) -> bool:
+func transfer_item(id: int) -> Dictionary:
 	if finalized or not atoms.has(id):
-		return false
+		return {}
 	var members := [id]
 	var stock_id: String = atoms[id].element
 	var formula := stock_id
@@ -163,14 +163,23 @@ func pack_atom(id: int) -> bool:
 	var edges := {}
 	for member in members:
 		records[member] = atoms[member]
-		atoms.erase(member)
-	for key in bonds.keys():
+	for key in bonds:
 		var bond: Dictionary = bonds[key]
 		if records.has(bond.a) and records.has(bond.b):
 			edges[key] = bond
-		if records.has(bond.a) or records.has(bond.b):
+	return {"stock_id": stock_id, "formula": formula, "atoms": records, "bonds": edges}
+
+func pack_atom(id: int) -> bool:
+	var item := transfer_item(id)
+	if item.is_empty():
+		return false
+	for member in item.atoms:
+		atoms.erase(member)
+	for key in bonds.keys():
+		var bond: Dictionary = bonds[key]
+		if item.atoms.has(bond.a) or item.atoms.has(bond.b):
 			bonds.erase(key)
-	packed_items[id] = {"stock_id": stock_id, "formula": formula, "atoms": records, "bonds": edges}
+	packed_items[id] = item
 	return true
 
 func unpack(id: int) -> bool:

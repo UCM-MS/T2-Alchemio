@@ -112,7 +112,13 @@ func run_checks() -> void:
 	board.positions = {0: Vector2(110, 125), 1: Vector2(200, 185), 2: Vector2(290, 125), 3: Vector2(400, 130), 4: Vector2(340, 236), 5: Vector2(505, 130)}
 	board.queue_redraw()
 	var to_tray: Vector2 = board.get_global_transform().affine_inverse() * board.inventory_target.get_global_rect().get_center()
-	await drag_board(board, board.positions[0], to_tray)
+	await hold_drag(board, board.positions[0], to_tray, MOUSE_BUTTON_LEFT)
+	check(board.drag_preview != null and board.drag_preview.is_visible_in_tree(), "The carried molecule stays visible over the inventory")
+	if board.drag_preview:
+		check(board.drag_preview.item.atoms.size() == 3 and board.drag_preview.item.bonds.size() == 2, "Preview carries the whole water model")
+	check(board.graph.packed_items.is_empty(), "Hovering does not transfer the molecule")
+	await release_drag(board, to_tray, MOUSE_BUTTON_LEFT)
+	check(board.drag_preview == null, "Releasing clears the cursor preview")
 	check(board.graph.packed_items.has(0) and board.graph.atoms.size() == 3, "Dragging a molecule packs every member")
 	if board.graph.packed_items.has(0):
 		var card: Control = panel.stock.get_child(0)
@@ -179,6 +185,10 @@ func click_at(point: Vector2) -> void:
 		await process_frame
 
 func drag_board(board: Control, from: Vector2, to: Vector2, button := MOUSE_BUTTON_LEFT) -> void:
+	await hold_drag(board, from, to, button)
+	await release_drag(board, to, button)
+
+func hold_drag(board: Control, from: Vector2, to: Vector2, button: MouseButton) -> void:
 	var transform := board.get_global_transform_with_canvas()
 	var down := InputEventMouseButton.new()
 	down.position = transform * from
@@ -195,8 +205,10 @@ func drag_board(board: Control, from: Vector2, to: Vector2, button := MOUSE_BUTT
 		motion.button_mask = MOUSE_BUTTON_MASK_RIGHT if button == MOUSE_BUTTON_RIGHT else MOUSE_BUTTON_MASK_LEFT
 		root.push_input(motion, true)
 		await process_frame
+
+func release_drag(board: Control, to: Vector2, button: MouseButton) -> void:
 	var up := InputEventMouseButton.new()
-	up.position = transform * to
+	up.position = board.get_global_transform_with_canvas() * to
 	up.button_index = button
 	up.pressed = false
 	root.push_input(up, true)

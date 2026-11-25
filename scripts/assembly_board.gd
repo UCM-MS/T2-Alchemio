@@ -4,6 +4,7 @@ signal changed
 signal feedback(message: String)
 signal bond_selection_changed(has_selection: bool)
 const UI = preload("res://scripts/workspace_ui.gd")
+const DragPreview = preload("res://scripts/molecule_drag_preview.gd")
 const Graph = preload("res://scripts/assembly_graph.gd")
 const FONT = preload("res://assets/fonts/NotoSans.ttf")
 const RADIUS := 25.0
@@ -14,6 +15,9 @@ const ELECTRON_ORBIT_SECONDS := 6.0
 var graph = Graph.new()
 var positions: Dictionary = {}
 var inventory_target: PanelContainer
+var drag_preview: Control
+var inventory_style: StyleBoxFlat
+var inventory_highlight: StyleBoxFlat
 var selected_bond := ""
 var drawing_bond := false
 var bond_cursor := Vector2.ZERO
@@ -31,12 +35,22 @@ var element_colors := {}
 var element_shells := {}
 
 func _ready() -> void:
+	visibility_changed.connect(func():
+		if dragging >= 0 and not is_visible_in_tree():
+			cancel_interaction()
+	)
 	for element in AlphaCatalog.load_data().elements:
 		element_colors[element.symbol] = UI.tint(element.symbol)
 		var atomic_number := int(element.atomic_number)
 		element_shells[element.symbol] = element.get("electron_shells", _shells_for(atomic_number))
 	custom_minimum_size = Vector2(600, 300)
 	clip_contents = true
+	if inventory_target:
+		inventory_style = inventory_target.get_theme_stylebox("panel")
+		inventory_highlight = inventory_style.duplicate()
+		inventory_highlight.bg_color = UI.ACTIVE
+		inventory_highlight.border_color = UI.MINT
+		inventory_highlight.set_border_width_all(3)
 	focus_mode = Control.FOCUS_ALL
 	resized.connect(_clamp_positions)
 	get_window().focus_exited.connect(cancel_interaction)
@@ -142,8 +156,7 @@ func _gui_input(event: InputEvent) -> void:
 				bond_cursor = event.position
 			else:
 				_move_dragged_atoms(target - drag_origin)
-				if inventory_target:
-					inventory_target.self_modulate = UI.MINT if _over_inventory(event.position) else Color.WHITE
+				_update_drag_preview(event.position)
 		queue_redraw()
 		accept_event()
 	elif event.is_action_pressed("delete_bond"):
@@ -196,6 +209,35 @@ func _finish_drag(point: Vector2) -> void:
 		inspected_atom = dragging
 		show_all_shells = double_click
 	_end_drag()
+
+func _update_drag_preview(point: Vector2) -> void:
+	if not inventory_target:
+		return
+	var style := inventory_highlight if _over_inventory(point) else inventory_style
+	if inventory_target.get_theme_stylebox("panel") != style:
+		inventory_target.add_theme_stylebox_override("panel", style)
+	# Once the board clamps the model, carry its miniature the rest of the way.
+	var detached := not Rect2(Vector2.ZERO, size).has_point(point) or (point + drag_offset).distance_to(positions[dragging]) > RADIUS
+	if not detached:
+		if drag_preview:
+			drag_preview.hide()
+		return
+	if not drag_preview:
+		var original := positions.duplicate()
+		original.merge(drag_start_positions, true)
+		drag_preview = DragPreview.new(graph.transfer_item(dragging), original, RADIUS)
+		drag_preview.top_level = true
+		drag_preview.z_index = 20
+		inventory_target.add_child(drag_preview)
+	var cursor := get_global_transform() * point
+	var pos := cursor + Vector2(14, 14)
+	var viewport_end := get_viewport_rect().end
+	if pos.x + drag_preview.size.x > viewport_end.x:
+		pos.x = cursor.x - drag_preview.size.x - 14
+	if pos.y + drag_preview.size.y > viewport_end.y:
+		pos.y = cursor.y - drag_preview.size.y - 14
+	drag_preview.global_position = pos.max(Vector2.ZERO)
+	drag_preview.show()
 
 func _over_inventory(point: Vector2) -> bool:
 	return inventory_target != null and inventory_target.get_global_rect().has_point(get_global_transform() * point)
@@ -250,8 +292,12 @@ func _move_dragged_atoms(offset: Vector2) -> void:
 		positions[id] = drag_start_positions[id] + bounded_offset
 
 func _end_drag() -> void:
-	if inventory_target:
-		inventory_target.self_modulate = Color.WHITE
+	if drag_preview:
+		drag_preview.hide()
+		drag_preview.queue_free()
+		drag_preview = null
+	if inventory_target and inventory_target.get_theme_stylebox("panel") == inventory_highlight:
+		inventory_target.add_theme_stylebox_override("panel", inventory_style)
 	if drag_moved and _drag_overlaps_other_atoms():
 		for id in drag_start_positions:
 			positions[id] = drag_start_positions[id]
