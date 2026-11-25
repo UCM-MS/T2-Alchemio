@@ -76,17 +76,19 @@ func run_checks() -> void:
 	await click_board(board, board.positions[0])
 	await drag_board(board, board.positions[0], initial)
 	check(board.positions[0].distance_to(initial) < 1 and board.graph.bonds.is_empty(), "Move mode drags an inspected atom")
-	await click_control(panel.bonds_button)
+	var before_bonds: Dictionary = board.positions.duplicate()
 	await click_board(board, board.positions[0])
-	await drag_board(board, board.positions[0], board.positions[1])
+	await drag_board(board, board.positions[0], board.positions[1], MOUSE_BUTTON_RIGHT)
 	await click_board(board, board.positions[2])
-	await drag_board(board, board.positions[2], board.positions[1])
+	await drag_board(board, board.positions[2], board.positions[1], MOUSE_BUTTON_RIGHT)
 	await click_board(board, board.positions[3])
-	await drag_board(board, board.positions[3], board.positions[5])
-	await drag_board(board, board.positions[3], board.positions[5])
-	check(board.graph.preview().products == {"water": 1, "oxygen": 1}, "Mouse builds both molecules")
-	await drag_board(board, board.positions[3], board.positions[5])
-	await drag_board(board, board.positions[3], board.positions[5])
+	await drag_board(board, board.positions[3], board.positions[5], MOUSE_BUTTON_RIGHT)
+	await drag_board(board, board.positions[3], board.positions[5], MOUSE_BUTTON_RIGHT)
+	check(board.graph.preview().products == {"water": 1, "oxygen": 1} and board.positions == before_bonds, "Right drags build both molecules without moving atoms")
+	await drag_board(board, board.positions[0], Vector2(20, 25), MOUSE_BUTTON_RIGHT)
+	check(board.positions == before_bonds and board.graph.bonds.size() == 3, "Right release over empty space cancels the bond")
+	await drag_board(board, board.positions[3], board.positions[5], MOUSE_BUTTON_RIGHT)
+	await drag_board(board, board.positions[3], board.positions[5], MOUSE_BUTTON_RIGHT)
 	check(board.graph.order_between(3, 5) == 3, "Repeated gestures stop at a triple bond")
 	board.connect_atoms(3, 5, 2)
 	await click_board(board, (board.positions[0] + board.positions[1]) / 2)
@@ -109,7 +111,6 @@ func run_checks() -> void:
 	# Separate molecules spatially to inspect green outlines, formulas and lines.
 	board.positions = {0: Vector2(110, 125), 1: Vector2(200, 185), 2: Vector2(290, 125), 3: Vector2(400, 130), 4: Vector2(340, 236), 5: Vector2(505, 130)}
 	board.queue_redraw()
-	board.set_bond_mode(false)
 	var to_tray: Vector2 = board.get_global_transform().affine_inverse() * board.inventory_target.get_global_rect().get_center()
 	await drag_board(board, board.positions[0], to_tray)
 	check(board.graph.packed_items.has(0) and board.graph.atoms.size() == 3, "Dragging a molecule packs every member")
@@ -177,11 +178,11 @@ func click_at(point: Vector2) -> void:
 		root.push_input(event, true)
 		await process_frame
 
-func drag_board(board: Control, from: Vector2, to: Vector2) -> void:
+func drag_board(board: Control, from: Vector2, to: Vector2, button := MOUSE_BUTTON_LEFT) -> void:
 	var transform := board.get_global_transform_with_canvas()
 	var down := InputEventMouseButton.new()
 	down.position = transform * from
-	down.button_index = MOUSE_BUTTON_LEFT
+	down.button_index = button
 	down.pressed = true
 	root.push_input(down, true)
 	await process_frame
@@ -191,12 +192,12 @@ func drag_board(board: Control, from: Vector2, to: Vector2) -> void:
 		motion = InputEventMouseMotion.new()
 		motion.position = point
 		motion.relative = point - start
-		motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+		motion.button_mask = MOUSE_BUTTON_MASK_RIGHT if button == MOUSE_BUTTON_RIGHT else MOUSE_BUTTON_MASK_LEFT
 		root.push_input(motion, true)
 		await process_frame
 	var up := InputEventMouseButton.new()
 	up.position = transform * to
-	up.button_index = MOUSE_BUTTON_LEFT
+	up.button_index = button
 	up.pressed = false
 	root.push_input(up, true)
 	await process_frame

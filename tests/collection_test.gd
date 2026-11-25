@@ -24,6 +24,26 @@ func run_checks() -> void:
 		counts[atom.element_id] += 1
 	check(counts.H == 24 and counts.O == 24, "Balanced H/O supply")
 	var initial: Vector2 = arena.collector.position
+	arena.camera.force_update_scroll()
+	var center: Vector2 = arena.get_global_transform_with_canvas() * initial
+	map_click(center + Vector2(0, 100), true)
+	arena._physics_process(0.1)
+	check(arena.collector.position.is_equal_approx(initial + Vector2(0, 25.5)), "Holding left on the map steers at collection speed")
+	var motion := InputEventMouseMotion.new()
+	motion.position = arena.get_global_transform_with_canvas() * (arena.collector.position + Vector2(5, 0))
+	motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+	root.push_input(motion, true)
+	arena._physics_process(0.1)
+	check(arena.collector.position.is_equal_approx(initial + Vector2(5, 25.5)), "Moving the cursor redirects steering without overshoot")
+	map_click(motion.position, false)
+	arena.collector.position = initial
+	arena._physics_process(0.1)
+	check(arena.collector.position == initial, "Releasing the mouse stops steering")
+	map_click(Vector2(55, 45), true)
+	arena._physics_process(0.1)
+	check(arena.collector.position == initial, "Pressing the reset button does not steer")
+	map_click(Vector2(55, 45), false)
+	main.reset_confirmation.hide()
 	Input.action_press("move_right")
 	arena._physics_process(0.1)
 	Input.action_release("move_right")
@@ -99,6 +119,13 @@ func run_checks() -> void:
 	main.queue_free()
 	await process_frame
 	quit(0 if failures.is_empty() else 1)
+
+func map_click(point: Vector2, pressed: bool) -> void:
+	var button := InputEventMouseButton.new()
+	button.position = point
+	button.button_index = MOUSE_BUTTON_LEFT
+	button.pressed = pressed
+	root.push_input(button, true)
 
 func screenshot(path: String) -> void:
 	if DisplayServer.get_name() == "headless":

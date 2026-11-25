@@ -15,7 +15,6 @@ var graph = Graph.new()
 var positions: Dictionary = {}
 var inventory_target: PanelContainer
 var selected_bond := ""
-var bond_mode := false
 var drawing_bond := false
 var bond_cursor := Vector2.ZERO
 var dragging := -1
@@ -40,6 +39,7 @@ func _ready() -> void:
 	clip_contents = true
 	focus_mode = Control.FOCUS_ALL
 	resized.connect(_clamp_positions)
+	get_window().focus_exited.connect(cancel_interaction)
 
 func _process(delta: float) -> void:
 	if inspected_atom < 0 or not is_visible_in_tree():
@@ -120,50 +120,18 @@ func _bond_at(point: Vector2) -> String:
 func _gui_input(event: InputEvent) -> void:
 	if graph.finalized:
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			grab_focus()
-			var id := _atom_at(event.position)
-			_select_bond("" if id >= 0 else _bond_at(event.position))
-			dragging = id
-			drag_moved = false
-			drawing_bond = bond_mode and id >= 0
-			double_click = event.double_click and id >= 0 and id == inspected_atom
-			if id < 0:
-				inspected_atom = -1
-			else:
-				drag_origin = positions[id]
-				bond_cursor = event.position
-				drag_offset = drag_origin - event.position
-				if not drawing_bond:
-					drag_start_positions = {id: drag_origin}
-					if id != inspected_atom:
-						for group in recognized:
-							if not group.substance.is_empty() and id in group.atom_ids:
-								for member in group.atom_ids:
-									drag_start_positions[member] = positions[member]
-								break
-		else:
-			if dragging >= 0 and drag_moved and not drawing_bond and _over_inventory(event.position):
-				var id := dragging
-				# Dropping an inspected atom from a molecule packs the original whole model.
-				positions.merge(drag_start_positions, true)
-				drag_moved = false
-				_end_drag()
-				pack_atom(id)
-				accept_event()
-				return
-			var target_id := _atom_at(event.position)
-			if drawing_bond and drag_moved and target_id >= 0 and target_id != dragging:
-				var order: int = graph.order_between(dragging, target_id)
-				if order < 3:
-					connect_atoms(dragging, target_id, order + 1)
-			elif dragging >= 0 and not drag_moved and target_id == dragging:
-				if inspected_atom != dragging:
-					electron_orbit_phase = 0.0
-				inspected_atom = dragging
-				show_all_shells = double_click
-			_end_drag()
+	if event is InputEventMouseButton and event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
+		var right_button: bool = event.button_index == MOUSE_BUTTON_RIGHT
+		if dragging >= 0 and drawing_bond != right_button:
+			accept_event()
+			return
+		if event.canceled:
+			cancel_interaction()
+		elif event.pressed:
+			if dragging < 0:
+				_begin_drag(event, right_button)
+		elif dragging >= 0:
+			_finish_drag(event.position)
 		queue_redraw()
 		accept_event()
 	elif event is InputEventMouseMotion and dragging >= 0:
@@ -181,6 +149,53 @@ func _gui_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("delete_bond"):
 		delete_selected_bond()
 		accept_event()
+
+func _begin_drag(event: InputEventMouseButton, right_button: bool) -> void:
+	var id := _atom_at(event.position)
+	if right_button and id < 0:
+		return
+	grab_focus()
+	_select_bond("" if id >= 0 else _bond_at(event.position))
+	if id < 0:
+		inspected_atom = -1
+		return
+	dragging = id
+	drag_moved = false
+	drawing_bond = right_button
+	drag_origin = positions[id]
+	drag_offset = drag_origin - event.position
+	bond_cursor = event.position
+	if drawing_bond:
+		return
+	double_click = event.double_click and id == inspected_atom
+	drag_start_positions = {id: drag_origin}
+	if id != inspected_atom:
+		for group in recognized:
+			if not group.substance.is_empty() and id in group.atom_ids:
+				for member in group.atom_ids:
+					drag_start_positions[member] = positions[member]
+				break
+
+func _finish_drag(point: Vector2) -> void:
+	var target_id := _atom_at(point)
+	if drawing_bond:
+		if target_id >= 0 and target_id != dragging:
+			var order: int = graph.order_between(dragging, target_id)
+			if order < 3:
+				connect_atoms(dragging, target_id, order + 1)
+	elif drag_moved and _over_inventory(point):
+		var id := dragging
+		# Pack the original model even if only its inspected atom was being moved.
+		positions.merge(drag_start_positions, true)
+		drag_moved = false
+		pack_atom(id)
+		return
+	elif not drag_moved and target_id == dragging:
+		if inspected_atom != dragging:
+			electron_orbit_phase = 0.0
+		inspected_atom = dragging
+		show_all_shells = double_click
+	_end_drag()
 
 func _over_inventory(point: Vector2) -> bool:
 	return inventory_target != null and inventory_target.get_global_rect().has_point(get_global_transform() * point)
@@ -256,11 +271,6 @@ func cancel_interaction() -> void:
 	_end_drag()
 	_select_bond("")
 	inspected_atom = -1
-	queue_redraw()
-
-func set_bond_mode(enabled: bool) -> void:
-	_end_drag()
-	bond_mode = enabled
 	queue_redraw()
 
 func _draw() -> void:

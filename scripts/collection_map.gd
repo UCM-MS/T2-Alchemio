@@ -11,6 +11,8 @@ var free_atoms: Dictionary = {}
 var cargo: Array[Dictionary] = []
 var capacity: int
 var active := true
+var following_mouse := false
+var pointer_position := Vector2.ZERO
 var available_elements: Array[String] = ["H", "O"]
 
 func _ready() -> void:
@@ -23,6 +25,7 @@ func _ready() -> void:
 	add_child(collector)
 	collector.position = WORLD_SIZE / 2
 	collector.z_index = 1
+	get_window().focus_exited.connect(func(): following_mouse = false)
 	camera = Camera2D.new()
 	camera.limit_left = 0
 	camera.limit_top = 0
@@ -54,10 +57,26 @@ func _ready() -> void:
 	cargo_changed.emit(cargo.duplicate(true), capacity)
 	queue_redraw()
 
+func handle_map_input(event: InputEvent) -> void:
+	if not active:
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		following_mouse = event.pressed and not event.canceled
+		pointer_position = event.position
+	elif event is InputEventMouseMotion and following_mouse:
+		pointer_position = event.position
+		following_mouse = (event.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0
+
 func _physics_process(delta: float) -> void:
 	if not active:
 		return
-	collector.move_in_arena(Input.get_vector("move_left", "move_right", "move_up", "move_down"), delta, WORLD_SIZE)
+	var direction := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	if following_mouse and direction.is_zero_approx() and delta > 0.0:
+		# The camera moves under a held cursor, even between mouse motion events.
+		var target := get_global_transform_with_canvas().affine_inverse() * pointer_position
+		var offset: Vector2 = target - collector.position
+		direction = (offset / (Collector.SPEED * delta)).limit_length()
+	collector.move_in_arena(direction, delta, WORLD_SIZE)
 	if cargo.size() >= capacity:
 		return
 	for id in free_atoms.keys():
@@ -82,6 +101,7 @@ func finish_collection() -> void:
 	if not active or cargo.is_empty():
 		return
 	active = false
+	following_mouse = false
 	collection_finished.emit(cargo.duplicate(true))
 
 func resume_collection() -> void:

@@ -62,7 +62,8 @@ func _ready() -> void:
 	screen.theme.set_stylebox("pressed", "Button", hover)
 	map_page = Control.new()
 	map_page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	map_page.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	map_page.mouse_filter = Control.MOUSE_FILTER_STOP
+	map_page.gui_input.connect(func(event: InputEvent): collection_map.handle_map_input(event))
 	screen.add_child(map_page)
 	cargo_label = add_label(map_page, "", 22)
 	cargo_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -155,7 +156,7 @@ func _build_save_controls() -> void:
 	help_button.text = "? Pomoc"
 	help_button.position = Vector2(180, 24)
 	map_page.add_child(help_button)
-	help_button.pressed.connect(func(): map_help.open("Zber atómov", "Pohybuj sa pomocou WASD alebo šípok. Atóm sa pripojí pri dotyku ľubovoľnou časťou tvojej skupiny.\n\nKapacita je %d atómov. Hľadaj rôzne symboly a zbieraj ich podľa potreby.\n\nK skladaniu otvorí pracovnú plochu. Pred dokončením sa môžeš vrátiť na tú istú mapu a pokračovať v zbieraní.\n\nTyčky pri zbere sú iba uchytenia. Chemické väzby vytvoríš až pri skladaní. Rozpracovaný zber a skladanie sa po zatvorení hry neobnovia." % collection_map.capacity))
+	help_button.pressed.connect(func(): map_help.open("Zber atómov", "Pohybuj sa pomocou WASD alebo šípok. Ak chceš ísť za kurzorom, podrž na mape ľavé tlačidlo myši. Atóm sa pripojí pri dotyku ľubovoľnou časťou tvojej skupiny.\n\nKapacita je %d atómov. Hľadaj rôzne symboly a zbieraj ich podľa potreby.\n\nK skladaniu otvorí pracovnú plochu. Pred dokončením sa môžeš vrátiť na tú istú mapu a pokračovať v zbieraní.\n\nTyčky pri zbere sú iba uchytenia. Chemické väzby vytvoríš až pri skladaní. Rozpracovaný zber a skladanie sa po zatvorení hry neobnovia." % collection_map.capacity))
 	reset_confirmation = ConfirmationDialog.new()
 	reset_confirmation.exclusive = true
 	reset_confirmation.title = "Nová hra?"
@@ -208,7 +209,7 @@ func _build_preview(target: Control) -> void:
 	preview_page.hide()
 	target.add_child(preview_page)
 	preview_page.board.graph.configure_elements(research.available_elements)
-	preview_page.instructions.text += "  " + research.assembly_goal()
+	preview_page.instructions.text = research.assembly_goal()
 	preview_page.return_requested.connect(_return_to_map)
 	preview_page.completed.connect(_assembly_completed)
 	preview_page.new_collection_requested.connect(_new_collection)
@@ -301,7 +302,7 @@ func _update_cargo(atoms: Array[Dictionary], capacity: int) -> void:
 		parts.append("%s %d" % [symbol, counts.get(symbol, 0)])
 	cargo_label.text = "%s  |  %d / %d" % ["  ".join(parts), atoms.size(), capacity]
 	finish_button.disabled = atoms.is_empty()
-	hint_label.text = "WASD / šípky · Zbieraj atómy dotykom, potom zvoľ K skladaniu.\nTyčky sú uchytenia, nie chemické väzby."
+	hint_label.text = "Pohyb: WASD / šípky alebo podrž ľavé tlačidlo myši.\nZbieraj atómy dotykom, potom zvoľ K skladaniu.\nTyčky sú uchytenia, nie chemické väzby."
 	if atoms.size() >= capacity:
 		hint_label.text += "\nZberač je plný. Pokračuj k skladaniu."
 

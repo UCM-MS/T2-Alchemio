@@ -6,13 +6,13 @@ signal collection_requested
 const UI = preload("res://scripts/workspace_ui.gd")
 const BoardScene = preload("res://scenes/assembly_board.tscn")
 const HelpDialog = preload("res://scripts/help_dialog.gd")
-const CONTROLS_HELP := """Klik na atóm ukáže vonkajšiu vrstvu, dvojklik všetky vrstvy. S nástrojom Vytvoriť väzbu potiahni z jedného atómu na druhý. Rovnakým ťahom pridáš druhú a tretiu čiaru.
+const CONTROLS_HELP := """Klik na atóm ukáže vonkajšiu vrstvu, dvojklik všetky vrstvy. Podrž pravé tlačidlo myši na atóme a pusť ho nad druhým atómom. Rovnakým ťahom pridáš druhú a tretiu čiaru.
 
-Kliknutím na čiaru vyberieš väzbu. Odstrániš ju tlačidlom Odstrániť väzbu alebo klávesom Delete. S nástrojom Presunúť atóm potiahni rozkliknutý atóm, ak chceš pohnúť iba ním. Potiahnutím nerozkliknutého atómu presunieš celú rozpoznanú molekulu.
+Kliknutím na čiaru vyberieš väzbu. Odstrániš ju tlačidlom Odstrániť väzbu alebo klávesom Delete. Ľavým tlačidlom potiahni rozkliknutý atóm, ak chceš pohnúť iba ním. Potiahnutím nerozkliknutého atómu presunieš celú rozpoznanú molekulu.
 
 Zelený obrys označuje rozpoznaný model. Hra kontroluje, ktoré atómy sú spojené a akými väzbami. Polohu atómov môžeš meniť.
 
-V režime presunu potiahni atóm alebo rozpoznanú molekulu do inventára vľavo. Z nedokončeného modelu sa odpojí vybraný atóm. Kartu z inventára môžeš potiahnuť späť na voľné miesto na ploche.
+Ľavým tlačidlom potiahni atóm alebo rozpoznanú molekulu do inventára vľavo. Z nedokončeného modelu sa odpojí vybraný atóm. Kartu z inventára môžeš potiahnuť späť na voľné miesto na ploche.
 
 Do laboratória prenesieš iba obsah inventára. Dokončením skladania zahodíš všetko, čo ostalo na ploche."""
 const DUET_IMAGE = preload("res://assets/hydrogen_duet.svg")
@@ -30,7 +30,6 @@ var finish_button: Button
 var confirmation: ConfirmationDialog
 var result_page: VBoxContainer
 var delete_button: Button
-var bonds_button: Button
 var result: Dictionary = {}
 var heading: Label
 var instructions: Label
@@ -68,30 +67,16 @@ func _ready() -> void:
 	var sidebar := UI.panel(workspace)
 	sidebar.custom_minimum_size.x = 246
 	controls = UI.column(sidebar, 8)
-	UI.label(controls, "NÁSTROJE", 13, UI.MUTED, true)
-	var move_button := UI.button(controls, "⊕    Presunúť atóm")
-	bonds_button = UI.button(controls, "═    Vytvoriť väzbu")
-	for tool in [move_button, bonds_button]:
-		tool.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		tool.custom_minimum_size.y = 46
-	var modes := ButtonGroup.new()
-	for button in [move_button, bonds_button]:
-		button.toggle_mode = true
-		button.button_group = modes
-	move_button.button_pressed = true
-	move_button.pressed.connect(func():
-		board.set_bond_mode(false)
-		instructions.text = "Potiahni atóm alebo molekulu na iné miesto."
-	)
-	bonds_button.pressed.connect(func():
-		board.set_bond_mode(true)
-		instructions.text = "Potiahni medzi atómami. Opakovaním vytvoríš dvojitú alebo trojitú väzbu."
-	)
+	UI.label(controls, "OVLÁDANIE", 13, UI.MUTED, true)
+	UI.label(controls, "Ľavé tlačidlo", 16, UI.TEXT, true)
+	UI.label(controls, "Presuň atóm alebo molekulu.", 14, UI.MUTED).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UI.label(controls, "Pravé tlačidlo", 16, UI.TEXT, true)
+	UI.label(controls, "Potiahni medzi atómami. Opakovaním pridáš ďalšiu väzbu.", 14, UI.MUTED).autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	delete_button = UI.button(controls, "×    Odstrániť väzbu")
 	delete_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	delete_button.hide()
 	delete_button.pressed.connect(func(): board.delete_selected_bond())
-	instructions = UI.label(controls, "Potiahni atóm alebo molekulu. Na tvorbu väzieb vyber Vytvoriť väzbu.", 14, UI.MUTED)
+	instructions = UI.label(controls, "", 14, UI.MUTED)
 	instructions.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var help_dialog := HelpDialog.new()
 	add_child(help_dialog)
@@ -150,7 +135,7 @@ func _refresh_stock() -> void:
 		stock.remove_child(child)
 		child.queue_free()
 	if board.graph.packed_items.is_empty():
-		var hint := UI.label(stock, "Vyber Presunúť atóm. Sem potiahni atóm alebo molekulu, ktorú chceš vziať do laboratória.", 15, UI.MUTED)
+		var hint := UI.label(stock, "Ľavým tlačidlom sem potiahni atóm alebo molekulu, ktorú chceš vziať do laboratória.", 15, UI.MUTED)
 		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		return
 	var stacks := {}
