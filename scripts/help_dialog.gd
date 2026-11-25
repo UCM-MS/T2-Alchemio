@@ -1,6 +1,7 @@
 extends AcceptDialog
 var text_label: Label
 var scroll: ScrollContainer
+var illustration: TextureRect
 
 func _ready() -> void:
 	exclusive = true
@@ -8,10 +9,19 @@ func _ready() -> void:
 	scroll = ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(scroll)
+	var content := VBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(content)
+	illustration = TextureRect.new()
+	illustration.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	illustration.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	illustration.custom_minimum_size.y = 144
+	illustration.hide()
+	content.add_child(illustration)
 	text_label = Label.new()
 	text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	text_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(text_label)
+	content.add_child(text_label)
 
 func open(heading: String, text: String) -> void:
 	title = heading

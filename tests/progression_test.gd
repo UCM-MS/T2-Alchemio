@@ -103,9 +103,7 @@ func run_checks() -> void:
 			board.graph.set_bond(records[0].id, records[1].id, 2)
 			check(board.graph.preview().products.is_empty(), "CO requires triple rather than double bond")
 			await process_frame
-			await click_at(main.preview_page.mode_buttons[3].get_global_rect().get_center())
-			for record in records:
-				await click_at(board.get_global_transform_with_canvas() * board.positions[record.id])
+			board.connect_atoms(records[0].id, records[1].id, 3)
 		check(main.preview_page.board.graph.preview().products == {template.id:1}, "Playable assembly: " + template.id)
 		if template.id == "carbon_monoxide":
 			await screenshot("a5-triple-bond")

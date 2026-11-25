@@ -9,7 +9,7 @@ var collector: Node2D
 var camera: Camera2D
 var free_atoms: Dictionary = {}
 var cargo: Array[Dictionary] = []
-var capacity := 12
+var capacity: int
 var active := true
 var available_elements: Array[String] = ["H", "O"]
 

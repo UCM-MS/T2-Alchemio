@@ -1,6 +1,7 @@
 extends RefCounted
 ## Chemical graph only; collection attachments and screen positions never enter it.
 const Catalog = preload("res://scripts/catalog.gd")
+const VALENCE_LIMITS := {"H": 1, "O": 2, "N": 3, "C": 4}
 var atoms: Dictionary = {}
 var bonds: Dictionary = {}
 var finalized := false
@@ -33,8 +34,31 @@ func edge_key(a: int, b: int) -> String:
 func set_bond(a: int, b: int, order: int) -> bool:
 	if finalized or a == b or not atoms.has(a) or not atoms.has(b) or order not in [1, 2, 3]:
 		return false
-	bonds[edge_key(a, b)] = {"a": mini(a, b), "b": maxi(a, b), "order": order}
+	var key := edge_key(a, b)
+	bonds[key] = {"a": mini(a, b), "b": maxi(a, b), "order": order}
 	return true
+
+func invalid_bonds() -> Dictionary:
+	var totals: Dictionary = {}
+	for bond in bonds.values():
+		for id in [bond.a, bond.b]:
+			totals[id] = int(totals.get(id, 0)) + int(bond.order)
+	var invalid: Dictionary = {}
+	for key in bonds:
+		var bond: Dictionary = bonds[key]
+		if bond.order == 3 and _is_carbon_oxygen_pair(bond.a, bond.b):
+			if totals[bond.a] == 3 and totals[bond.b] == 3:
+				continue
+			invalid[key] = true
+		for id in [bond.a, bond.b]:
+			if int(totals[id]) > int(VALENCE_LIMITS.get(atoms[id].element, 0)):
+				invalid[key] = true
+	return invalid
+
+func _is_carbon_oxygen_pair(a: int, b: int) -> bool:
+	var first: String = atoms[a].element
+	var second: String = atoms[b].element
+	return (first == "C" and second == "O") or (first == "O" and second == "C")
 
 func remove_bond(key: String) -> bool:
 	if finalized:

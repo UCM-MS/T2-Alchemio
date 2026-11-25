@@ -151,7 +151,7 @@ func _build_save_controls() -> void:
 	help_button.text = "? Pomoc"
 	help_button.position = Vector2(180, 24)
 	map_page.add_child(help_button)
-	help_button.pressed.connect(func(): map_help.open("Zber atómov", "Pohybuj sa pomocou WASD alebo šípok. Atóm sa pripojí pri dotyku ľubovoľnou časťou tvojej skupiny.\n\nKapacita je 12 atómov. Hľadaj rôzne symboly a zbieraj ich podľa potreby.\n\nK skladaniu otvorí pracovnú plochu. Pred dokončením sa môžeš vrátiť na tú istú mapu a pokračovať v zbieraní.\n\nTyčky pri zbere sú iba uchytenia. Chemické väzby vytvoríš až pri skladaní. Rozpracovaný zber a skladanie sa po zatvorení hry neobnovia."))
+	help_button.pressed.connect(func(): map_help.open("Zber atómov", "Pohybuj sa pomocou WASD alebo šípok. Atóm sa pripojí pri dotyku ľubovoľnou časťou tvojej skupiny.\n\nKapacita je %d atómov. Hľadaj rôzne symboly a zbieraj ich podľa potreby.\n\nK skladaniu otvorí pracovnú plochu. Pred dokončením sa môžeš vrátiť na tú istú mapu a pokračovať v zbieraní.\n\nTyčky pri zbere sú iba uchytenia. Chemické väzby vytvoríš až pri skladaní. Rozpracovaný zber a skladanie sa po zatvorení hry neobnovia." % collection_map.capacity))
 	reset_confirmation = ConfirmationDialog.new()
 	reset_confirmation.exclusive = true
 	reset_confirmation.title = "Nová hra?"

@@ -5,6 +5,17 @@ signal new_collection_requested
 signal collection_requested
 const BoardScene = preload("res://scenes/assembly_board.tscn")
 const HelpDialog = preload("res://scripts/help_dialog.gd")
+const CONTROLS_HELP := """Klik na atóm ukáže vonkajšiu vrstvu, dvojklik všetky vrstvy. V režime Väzby potiahni z jedného atómu na druhý. Rovnakým ťahom pridáš druhú a tretiu čiaru.
+
+Kliknutím na čiaru vyberieš väzbu. Odstrániš ju žltým tlačidlom Zrušiť väzbu alebo klávesom Delete. V režime Presun potiahni rozkliknutý atóm, ak chceš pohnúť iba ním. Potiahnutím nerozkliknutého atómu presunieš celú rozpoznanú molekulu.
+
+Zelený obrys označuje rozpoznaný model. Hra kontroluje, ktoré atómy sú spojené a akými väzbami. Polohu atómov môžeš meniť.
+
+Dokončiť skladanie pridá rozpoznané látky do zásoby a otvorí laboratórium."""
+const DUET_IMAGE = preload("res://assets/hydrogen_duet.svg")
+const BOND_HELP := """Vľavo má každý vodík vo svojej jedinej vrstve jeden elektrón. Vpravo ich vodíky zdieľajú ako spoločný pár. Každý si započíta oba elektróny (duet). Jeden spoločný pár tvorí jednu jednoduchú kovalentnú väzbu H–H.
+
+Pri skladaní spočítaj červené bodky na vonkajšej vrstve. Vodík potrebuje do duetu 2 elektróny. Pri kyslíku, dusíku a uhlíku pomáha pravidlo oktetu (8 elektrónov): kyslíku zvyčajne chýbajú 2, dusíku 3 a uhlíku 4. Dvojitá väzba zdieľa dva páry, trojitá tri."""
 var board: Control
 var status: Label
 var notice: Label
@@ -12,7 +23,8 @@ var controls: HBoxContainer
 var finish_button: Button
 var confirmation: ConfirmationDialog
 var result_page: VBoxContainer
-var mode_buttons: Array[Button] = []
+var delete_button: Button
+var bonds_button: Button
 var result: Dictionary = {}
 var heading: Label
 var instructions: Label
@@ -26,32 +38,64 @@ func _ready() -> void:
 	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	collection_button = _button(header, "Kolekcia")
 	collection_button.pressed.connect(func(): board.cancel_interaction(); collection_requested.emit())
-	instructions = _label(self, "Presuň atómy. Pre väzbu vyber jej typ a klikni na dva atómy.", 17)
+	instructions = _label(self, "Potiahni atóm alebo molekulu na iné miesto. Na tvorbu väzieb vyber Väzby.", 17)
 	controls = HBoxContainer.new()
 	controls.add_theme_constant_override("separation", 10)
 	add_child(controls)
-	var group := ButtonGroup.new()
-	for i in 4:
-		var button := _button(controls, ["Presun", "Jednoduchá", "Dvojitá", "Trojitá"][i])
+	var move_button := _button(controls, "Presun")
+	bonds_button = _button(controls, "Väzby")
+	var modes := ButtonGroup.new()
+	for button in [move_button, bonds_button]:
 		button.toggle_mode = true
-		button.button_group = group
-		button.button_pressed = i == 0
-		button.pressed.connect(_set_mode.bind(i))
-		mode_buttons.append(button)
-	var delete_button := _button(controls, "Odstrániť väzbu")
+		button.button_group = modes
+	move_button.button_pressed = true
+	move_button.pressed.connect(func():
+		board.set_bond_mode(false)
+		instructions.text = "Potiahni atóm alebo molekulu na iné miesto."
+	)
+	bonds_button.pressed.connect(func():
+		board.set_bond_mode(true)
+		instructions.text = "Potiahni z jedného atómu na druhý. Opakovaním zvýšiš násobnosť väzby."
+	)
+	delete_button = _button(controls, "Zrušiť väzbu")
+	var yellow := StyleBoxFlat.new()
+	yellow.bg_color = Color("f5d28b")
+	yellow.set_corner_radius_all(5)
+	yellow.content_margin_left = 10
+	yellow.content_margin_right = 10
+	for state in ["normal", "hover", "pressed"]:
+		delete_button.add_theme_stylebox_override(state, yellow)
+	for color_name in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color"]:
+		delete_button.add_theme_color_override(color_name, Color("101d2b"))
+	delete_button.hide()
 	delete_button.pressed.connect(func(): board.delete_selected_bond())
 	var help_dialog := HelpDialog.new()
 	add_child(help_dialog)
+	help_dialog.illustration.texture = DUET_IMAGE
 	var help := _button(controls, "? Pomoc")
-	help.pressed.connect(func(): help_dialog.open("Skladanie molekúl", "Presun: ťahaj atómy myšou. Atómy sa nesmú prekrývať.\n\nJednoduchá, Dvojitá a Trojitá určujú počet čiar medzi atómami. Vyber typ a klikni na dva atómy. Rovnaká dvojica zmení typ väzby.\n\nV režime Presun klikni na čiaru a stlač Delete alebo Odstrániť väzbu.\n\nZelené skupiny sú rozpoznané modely. Kontroluje sa celá spojená skupina aj typy väzieb; samotný počet atómov nestačí. Poloha a otočenie neovplyvnia výsledok.\n\nDokončiť skladanie pridá porcie do zásoby a otvorí laboratórium. Zvyšné atómy sa zahodia až po potvrdení. Stavba modelu nie je návodom na skutočnú chemickú syntézu."))
+	var help_arrow := help_dialog.add_button("Kovalentná väzba →", true)
+	help.pressed.connect(func():
+		help_arrow.text = "Kovalentná väzba →"
+		help_dialog.illustration.hide()
+		help_dialog.open("Skladanie molekúl", CONTROLS_HELP)
+	)
+	help_arrow.pressed.connect(func():
+		var show_bonds := help_dialog.title != "Kovalentná väzba"
+		help_arrow.text = "← Ovládanie" if show_bonds else "Kovalentná väzba →"
+		help_dialog.title = "Kovalentná väzba" if show_bonds else "Skladanie molekúl"
+		help_dialog.text_label.text = BOND_HELP if show_bonds else CONTROLS_HELP
+		help_dialog.illustration.visible = show_bonds
+		help_dialog.scroll.scroll_vertical = 0
+	)
 	board = BoardScene.instantiate()
 	board.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	board.changed.connect(_update_status)
 	board.feedback.connect(_show_notice)
+	board.bond_selection_changed.connect(func(has_selection: bool): delete_button.visible = has_selection)
 	add_child(board)
 	status = _label(self, "", 18)
 	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	notice = _label(self, "Presun: ťahaj atóm. Kliknutím na čiaru vyber väzbu; Delete ju odstráni.", 16)
+	notice = _label(self, "Zopakuj ťah medzi rovnakými atómami pre dvojitú alebo trojitú väzbu.", 16)
 	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	notice.modulate = Color("a5b4cb")
 	var footer := HBoxContainer.new()
@@ -76,10 +120,6 @@ func _ready() -> void:
 
 func begin(records: Array[Dictionary]) -> void:
 	board.load_atoms(records)
-
-func _set_mode(value: int) -> void:
-	board.set_mode(value)
-	_show_notice("Ťahaj atómy. Klikni na väzbu a stlač Delete." if value == 0 else "Klikni na prvý a potom na druhý atóm. Rovnaká dvojica zmení typ väzby.")
 
 func _show_notice(message: String) -> void:
 	notice.text = message
