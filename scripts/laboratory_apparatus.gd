@@ -1,7 +1,8 @@
 extends "res://scripts/flask_drop_target.gd"
 
-const FRAME := Color("a5cddc")
-const METAL := Color("496779")
+const UI = preload("res://scripts/workspace_ui.gd")
+const FRAME := Color("#b9ced2")
+const METAL := Color("#77939d")
 const AQUA := Color("4895aa")
 const AMBER := Color("ffad60")
 
@@ -10,17 +11,16 @@ var last_products := {}
 var elapsed := 0.0
 
 func _draw() -> void:
-	var frame := StyleBoxFlat.new()
-	frame.bg_color = Color("173e42") if highlighted else Color("101f2e")
-	frame.border_color = Color("8fe4d3") if highlighted else Color("315064")
-	frame.set_border_width_all(2)
-	frame.set_corner_radius_all(14)
-	draw_style_box(frame, Rect2(Vector2.ZERO, size))
+	if highlighted:
+		draw_style_box(UI.box(UI.ACTIVE, UI.ACCENT, 12, 0), Rect2(Vector2.ZERO, size))
 	if experiment == null or inventory == null:
 		return
-	draw_line(Vector2(43, 30), Vector2(43, 153), METAL, 5, true)
-	draw_line(Vector2(43, 70), Vector2(101, 70), METAL, 3, true)
-	draw_rect(Rect2(23, 151, 254, 7), METAL)
+	var zoom := minf(size.x / 310.0, size.y / 174.0)
+	draw_set_transform((size - Vector2(310, 174) * zoom) / 2, 0, Vector2.ONE * zoom)
+	draw_line(Vector2(67, 26), Vector2(67, 154), METAL, 5, true)
+	draw_style_box(UI.box(METAL, METAL, 3, 0), Rect2(31, 151, 90, 7))
+	var arm_y := 53 if experiment.instrument_id == "burner" else 76
+	draw_line(Vector2(65, arm_y), Vector2(119, arm_y), METAL, 3, true)
 	match experiment.instrument_id:
 		"beaker":
 			_draw_beaker()
@@ -100,9 +100,11 @@ func _draw_burner() -> void:
 	draw_line(Vector2(196, 137), Vector2(156, 137), METAL, 5, true)
 	_caption(fuel, Vector2(75, 143))
 	_caption("O₂", Vector2(200, 143))
-	draw_rect(Rect2(136, 147, 36, 5), METAL)
-	draw_rect(Rect2(147, 101, 14, 47), METAL)
-	draw_line(Vector2(119, 56), Vector2(186, 56), FRAME, 4, true)
+	draw_colored_polygon(PackedVector2Array([Vector2(144, 140), Vector2(164, 140), Vector2(171, 155), Vector2(137, 155)]), METAL.darkened(0.26))
+	draw_style_box(UI.box(METAL, METAL, 3, 0), Rect2(146, 104, 16, 38))
+	draw_style_box(UI.box(FRAME, FRAME, 2, 0), Rect2(142, 100, 24, 5))
+	draw_line(Vector2(118, 52), Vector2(118, 57), METAL, 3, true)
+	draw_line(Vector2(117, 57), Vector2(186, 57), FRAME, 3, true)
 	if running:
 		var flicker := sin(elapsed * 27) * 5
 		var flame := Color("91d8ed55") if hydrogen else Color("56b9ff")

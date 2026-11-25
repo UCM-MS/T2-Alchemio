@@ -2,6 +2,7 @@ extends Control
 signal changed
 signal feedback(message: String)
 signal bond_selection_changed(has_selection: bool)
+const UI = preload("res://scripts/workspace_ui.gd")
 const Graph = preload("res://scripts/assembly_graph.gd")
 const FONT = preload("res://assets/fonts/NotoSans.ttf")
 const RADIUS := 25.0
@@ -30,7 +31,7 @@ var element_shells := {}
 
 func _ready() -> void:
 	for element in AlphaCatalog.load_data().elements:
-		element_colors[element.symbol] = Color(element.color)
+		element_colors[element.symbol] = UI.tint(element.symbol)
 		var atomic_number := int(element.atomic_number)
 		element_shells[element.symbol] = element.get("electron_shells", _shells_for(atomic_number))
 	custom_minimum_size = Vector2(600, 300)
@@ -206,10 +207,6 @@ func set_bond_mode(enabled: bool) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), Color("101d2b"))
-	for x in range(20, int(size.x), 40):
-		for y in range(20, int(size.y), 40):
-			draw_circle(Vector2(x, y), 1, Color(0.4, 0.6, 0.7, 0.12))
 	var invalid: Dictionary = graph.invalid_bonds()
 	for key in graph.bonds:
 		var bond: Dictionary = graph.bonds[key]
@@ -256,7 +253,7 @@ func _draw() -> void:
 		var tint: Color = element_colors.get(symbol, Color.WHITE)
 		symbol = formal_symbols.get(id, symbol)
 		var point: Vector2 = positions[id]
-		draw_circle(point, RADIUS, tint.darkened(0.8))
+		draw_circle(point, RADIUS, UI.pigment(graph.atoms[id].element), true, -1, true)
 		draw_arc(point, RADIUS, 0, TAU, 48, tint, 2, true)
 		if matched.has(id):
 			draw_arc(point, RADIUS + 5, 0, TAU, 48, Color("7ed9c3"), 2, true)

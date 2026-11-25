@@ -4,6 +4,7 @@ signal progress_changed
 signal new_game_requested
 signal experiment_completed(id: String, products: Dictionary)
 
+const UI = preload("res://scripts/workspace_ui.gd")
 const ReagentCard = preload("res://scripts/reagent_card.gd")
 const Apparatus = preload("res://scripts/laboratory_apparatus.gd")
 const DiscoveryPanel = preload("res://scripts/discovery_panel.gd")
@@ -27,7 +28,7 @@ var equation_label: Label
 var temperature_label: Label
 var process_notice: Label
 var result_message := ""
-var output_row: HBoxContainer
+var output_row: HFlowContainer
 var outlet_buttons := {}
 var research_button: Button
 var collection_button: Button
@@ -43,37 +44,39 @@ var goals_label: Label
 var next_button: Button
 
 func _ready() -> void:
+	var layout := UI.column(self, 0)
+	var tabs := UI.nav(layout, "Laboratórium")
+	collection_button = tabs["Kolekcia"]
+	collection_button.disabled = false
+	collection_button.pressed.connect(func(): discovery.show_collection())
+	next_button = tabs["Hracia plocha"]
+	next_button.tooltip_text = "Nový zber"
+	next_button.pressed.connect(func(): new_collection_requested.emit())
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	# Keep the same content width when labels or the stock tray change height.
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_ALWAYS
-	add_child(scroll)
-	var page := VBoxContainer.new()
-	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	page.add_theme_constant_override("separation", 4)
-	scroll.add_child(page)
-	var header := HBoxContainer.new()
-	page.add_child(header)
-	var title := _label(header, "Laboratórium", 28)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	collection_button = Button.new()
-	collection_button.text = "Kolekcia"
-	collection_button.pressed.connect(func(): discovery.show_collection())
-	header.add_child(collection_button)
-	next_button = Button.new()
-	next_button.text = "Nový zber"
-	next_button.pressed.connect(func(): new_collection_requested.emit())
-	header.add_child(next_button)
-	var new_game := Button.new()
-	new_game.text = "Nová hra"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	layout.add_child(scroll)
+	var page := UI.page(scroll)
+	page.get_parent().size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var header := UI.row(page, 10)
+	var heading := UI.heading(header, "POKUSY A REAKCIE", "Laboratórium")
+	heading.get_parent().size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var progress := UI.column(header, 4)
+	progress.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	progress_label = UI.label(progress, "", 14, UI.MUTED)
+	progress_bar = ProgressBar.new()
+	progress_bar.custom_minimum_size = Vector2(150, 6)
+	progress_bar.show_percentage = false
+	progress_bar.add_theme_stylebox_override("background", UI.box(UI.EDGE, UI.EDGE, 3, 0))
+	progress_bar.add_theme_stylebox_override("fill", UI.box(UI.ACCENT, UI.ACCENT, 3, 0))
+	progress.add_child(progress_bar)
+	var new_game := UI.button(header, "Nová hra")
+	new_game.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	new_game.pressed.connect(func(): new_game_requested.emit())
-	header.add_child(new_game)
 	discovery = DiscoveryPanel.new()
 	add_child(discovery)
-	var help := Button.new()
-	help.text = "? Pomoc"
-	header.add_child(help)
+	var help := UI.button(header, "Pomoc")
+	help.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	help_dialog = HelpDialog.new()
 	var dialog = help_dialog
 	add_child(dialog)
@@ -84,69 +87,74 @@ func _ready() -> void:
 		"POSTUP\nUhlík odomkne prvé úspešné spaľovanie vodíka a prvá elektrolýza vody. V druhej etape dokonči oba pokusy s tuhým uhlíkom a over vplyv CO₂ na vodu. Doplnkové pokusy môžeš skúšať kedykoľvek po ich sprístupnení.",
 		"ULOŽENIE\nZásoba, objavy a dokončené pokusy sa ukladajú. Po načítaní sú všetky porcie späť v zásobe."
 	])))
-	summary = _label(page, "", 15)
-	summary.modulate = Color("a5b4cb")
-	var progress_row := HBoxContainer.new()
-	progress_row.add_theme_constant_override("separation", 14)
-	page.add_child(progress_row)
-	progress_label = _label(progress_row, "", 17)
-	progress_label.autowrap_mode = TextServer.AUTOWRAP_OFF
-	progress_bar = ProgressBar.new()
-	progress_bar.custom_minimum_size = Vector2(150, 12)
-	progress_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	progress_bar.show_percentage = false
-	var track := StyleBoxFlat.new()
-	track.bg_color = Color("29404f")
-	track.set_corner_radius_all(5)
-	progress_bar.add_theme_stylebox_override("background", track)
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Color("7ed9c3")
-	fill.set_corner_radius_all(5)
-	progress_bar.add_theme_stylebox_override("fill", fill)
-	progress_row.add_child(progress_bar)
-	goals_label = _label(page, "", 15)
-	goals_label.modulate = Color("a5b4cb")
-
-	var station_row := HBoxContainer.new()
-	station_row.add_theme_constant_override("separation", 8)
-	page.add_child(station_row)
+	UI.label(page, "SPÔSOB POKUSU", 13, UI.MUTED, true)
+	var station_row := UI.row(page, 10)
 	var station_group := ButtonGroup.new()
-	for id in ["liquid", "combustion"]:
+	for id in ["combustion", "liquid"]:
 		var button := Button.new()
-		button.text = "Kvapaliny" if id == "liquid" else "Spaľovanie"
+		button.text = "Kvapaliny a roztoky" if id == "liquid" else "Spaľovanie"
+		button.custom_minimum_size = Vector2(294, 56)
+		button.add_theme_font_size_override("font_size", 18)
 		button.toggle_mode = true
 		button.button_group = station_group
 		button.pressed.connect(_select_station.bind(id))
 		station_row.add_child(button)
 		station_buttons[id] = button
-	instrument_select = OptionButton.new()
-	instrument_select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	instrument_select.item_selected.connect(_choose_instrument)
-	station_row.add_child(instrument_select)
-
-	var workspace := VBoxContainer.new()
+	var workspace := UI.row(page, 12)
 	workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	workspace.add_theme_constant_override("separation", 4)
-	page.add_child(workspace)
-	var experience_row := HBoxContainer.new()
-	experience_row.add_theme_constant_override("separation", 20)
-	workspace.add_child(experience_row)
+	var stock_panel := UI.panel(workspace)
+	stock_panel.custom_minimum_size.x = 242
+	var tray := UI.column(stock_panel, 8)
+	UI.label(tray, "ZÁSOBA LÁTOK", 14, UI.MUTED, true)
+	summary = UI.label(tray, "", 13, UI.MUTED)
+	empty_label = UI.label(tray, "Prázdna zásoba", 16)
+	var cards := UI.scroll_column(tray)
+	cards_area = cards.get_parent()
+	var canvas := UI.panel(workspace, UI.CANVAS)
+	canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var center := UI.column(canvas, 5)
+	UI.label(center, "POKUSNÁ PLOCHA", 13, UI.MUTED, true)
 	flask = Apparatus.new()
 	flask.experiment = experiment
-	flask.custom_minimum_size = Vector2(300, 190)
-	flask.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	flask.custom_minimum_size = Vector2(300, 174)
+	flask.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	flask.portion_dropped.connect(_add)
-	experience_row.add_child(flask)
-	var controls := VBoxContainer.new()
-	controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	controls.add_theme_constant_override("separation", 6)
-	experience_row.add_child(controls)
-	equation_label = _label(controls, "", 22)
-	temperature_label = _label(controls, "", 16)
-	process_notice = _label(controls, "", 16)
-	process_notice.custom_minimum_size.y = 90
-	var tool_buttons := HBoxContainer.new()
-	controls.add_child(tool_buttons)
+	center.add_child(flask)
+	sample_label = UI.label(center, "", 15)
+	sample_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var actions := UI.row(center, 8)
+	return_button = UI.button(actions, "Vrátiť obsah")
+	return_button.pressed.connect(_return_sample)
+	research_button = UI.button(actions, "Karta látky")
+	research_button.pressed.connect(_investigate)
+	output_row = HFlowContainer.new()
+	center.add_child(output_row)
+	for substance in experiment.catalog.substances:
+		var outlet := UI.button(output_row, "")
+		outlet.tooltip_text = "Odobrať produkt do zásoby"
+		outlet.pressed.connect(_collect_outlet.bind(substance.id))
+		outlet.hide()
+		outlet_buttons[substance.id] = outlet
+	goals_label = UI.label(center, "", 13, UI.MUTED)
+	goals_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var settings_panel := UI.panel(workspace)
+	settings_panel.custom_minimum_size.x = 282
+	var settings := UI.column(settings_panel, 8)
+	UI.label(settings, "NASTAVENIE POKUSU", 13, UI.MUTED, true)
+	UI.label(settings, "Pomôcka", 14, UI.MUTED)
+	instrument_select = OptionButton.new()
+	instrument_select.fit_to_longest_item = false
+	instrument_select.item_selected.connect(_choose_instrument)
+	settings.add_child(instrument_select)
+	var details := UI.scroll_column(settings)
+	details.get_parent().custom_minimum_size.y = 78
+	UI.label(details, "Reakcia", 14, UI.MUTED)
+	equation_label = UI.label(details, "", 17, UI.MINT, true)
+	equation_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	temperature_label = UI.label(details, "", 15)
+	process_notice = UI.label(details, "", 15)
+	process_notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var tool_buttons := UI.column(settings, 4)
 	heat_button = Button.new()
 	heat_button.text = "Nahriať"
 	heat_button.toggle_mode = true
@@ -162,83 +170,36 @@ func _ready() -> void:
 		button.text = experiment.catalog.actions[id].name
 		button.pressed.connect(_run_action.bind(id))
 		tool_buttons.add_child(button)
+		UI.primary(button)
 		action_buttons[id] = button
 	experiment.process_changed.connect(_process_notice)
 	experiment.reaction_completed.connect(_reaction_completed)
 
-	sample_label = _label(workspace, "", 16)
-	var actions := HBoxContainer.new()
-	workspace.add_child(actions)
-	return_button = Button.new()
-	return_button.text = "Vrátiť obsah"
-	return_button.pressed.connect(_return_sample)
-	actions.add_child(return_button)
-	research_button = Button.new()
-	research_button.text = "Karta látky"
-	research_button.pressed.connect(_investigate)
-	actions.add_child(research_button)
-	output_row = HBoxContainer.new()
-	actions.add_child(output_row)
 	for substance in experiment.catalog.substances:
-		var button := Button.new()
-		button.tooltip_text = "Odobrať produkt do zásoby"
-		button.pressed.connect(_collect_outlet.bind(substance.id))
-		button.hide()
-		output_row.add_child(button)
-		outlet_buttons[substance.id] = button
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	workspace.add_child(spacer)
-	var stock_header := HBoxContainer.new()
-	page.add_child(stock_header)
-	var stock_title := _label(stock_header, "Zásoba", 21)
-	stock_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var hint := _label(stock_header, "Klikni na kartu alebo ju potiahni do prístroja", 16)
-	hint.autowrap_mode = TextServer.AUTOWRAP_OFF
-	hint.modulate = Color("a5b4cb")
-	empty_label = _label(page, "Prázdna zásoba", 17)
-	var card_scroll := ScrollContainer.new()
-	cards_area = card_scroll
-	card_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	card_scroll.custom_minimum_size.y = 126
-	page.add_child(card_scroll)
-	var cards := HBoxContainer.new()
-	cards.add_theme_constant_override("separation", 14)
-	card_scroll.add_child(cards)
-	for substance in experiment.catalog.substances:
-		var row := VBoxContainer.new()
-		cards.add_child(row)
 		var button := ReagentCard.new()
 		button.substance_id = substance.id
 		button.formula = substance.display_formula
 		button.tooltip_text = "Kliknutie alebo presunutie pridá jednu porciu do prístroja"
-		button.custom_minimum_size = Vector2(190, 116)
+		button.custom_minimum_size.y = 84
 		button.pressed.connect(_add.bind(substance.id))
-		for state in ["normal", "hover", "pressed", "focus"]:
-			var style := StyleBoxFlat.new()
-			style.bg_color = Color("19333e") if state == "normal" else Color("24514f")
-			style.border_color = Color("365767") if state == "normal" else Color("8fe4d3")
-			style.set_border_width_all(2)
-			style.set_corner_radius_all(4)
-			button.add_theme_stylebox_override(state, style)
-		row.add_child(button)
-		var content := VBoxContainer.new()
+		cards.add_child(button)
+		var line := HBoxContainer.new()
+		line.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		line.offset_left = 9
+		line.offset_right = -9
+		line.add_theme_constant_override("separation", 6)
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		button.add_child(line)
+		UI.badge(line, substance.display_formula, 50)
+		var content := UI.column(line, 0)
 		content.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-		content.offset_top = 8
-		content.offset_bottom = -8
-		content.alignment = BoxContainer.ALIGNMENT_CENTER
-		button.add_child(content)
-		var formula := _label(content, substance.display_formula, 26)
-		formula.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		var name_label := _label(content, substance.name, 15)
-		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		var label := _label(content, "", 15)
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label.modulate = Color("8fe4d3")
-		var status := _label(content, "", 12)
-		status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		rows[substance.id] = {"row": row, "label": label, "button": button, "data": substance, "status": status}
+		content.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var name_label := UI.label(content, substance.name, 16, UI.TEXT, true)
+		name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var status := UI.label(content, "", 11, UI.MUTED)
+		var count := UI.label(line, "", 15)
+		rows[substance.id] = {"row": button, "label": count, "button": button, "data": substance, "status": status}
 
 
 func setup(state: RefCounted, research_state: RefCounted) -> void:
@@ -404,7 +365,7 @@ func refresh() -> void:
 		var stock: int = inventory.stock[id]
 		row.row.visible = stock > 0
 		has_stock = has_stock or row.row.visible
-		row.label.text = _portions(stock)
+		row.label.text = "×%d" % stock
 		row.status.text = "Objavené" if research.researched.has(id) else ""
 		row.button.disabled = experiment.is_running() or stock == 0
 		var count: int = inventory.sample.get(id, 0)
@@ -420,7 +381,6 @@ func refresh() -> void:
 	return_button.disabled = experiment.is_running() or (contents.is_empty() and inventory.outlets.is_empty())
 	research_button.disabled = not research.researched.has(research.sample_id(inventory.sample))
 	next_button.disabled = experiment.is_running()
-	collection_button.text = "Kolekcia · %d" % research.researched.size()
 	var progress: Vector2i = research.stage_progress()
 	progress_bar.max_value = progress.y
 	progress_bar.value = progress.x
@@ -438,15 +398,6 @@ func refresh() -> void:
 
 func _portions(count: int) -> String:
 	return "%d %s" % [count, "porcia" if count == 1 else ("porcie" if count >= 2 and count <= 4 else "porcií")]
-
-func _label(parent: Node, text: String, font_size: int) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.add_theme_font_size_override("font_size", font_size)
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	parent.add_child(label)
-	return label
 
 func close_dialogs() -> void:
 	help_dialog.hide()

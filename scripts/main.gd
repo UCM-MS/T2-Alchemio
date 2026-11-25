@@ -1,4 +1,5 @@
 extends Control
+const UI = preload("res://scripts/workspace_ui.gd")
 const MapScene = preload("res://scenes/collection_map.tscn")
 const Inventory = preload("res://scripts/inventory.gd")
 const Research = preload("res://scripts/research.gd")
@@ -86,6 +87,7 @@ func _ready() -> void:
 	finish_button.offset_bottom = -28
 	_build_preview(screen)
 	laboratory = LabScene.instantiate()
+	laboratory.theme = UI.theme()
 	screen.add_child(laboratory)
 	laboratory.setup(inventory, research)
 	# One collection window shared by assembly, notifications and the laboratory.
@@ -196,16 +198,13 @@ func _reset_game() -> void:
 func _build_preview(target: Control) -> void:
 	if preview_background == null:
 		preview_background = ColorRect.new()
-		preview_background.color = Color("09101a")
+		preview_background.color = UI.BG
 		preview_background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		preview_background.hide()
 		target.add_child(preview_background)
 	preview_page = AssemblyPanel.new()
+	preview_page.theme = UI.theme()
 	preview_page.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	preview_page.offset_left = 28
-	preview_page.offset_right = -28
-	preview_page.offset_top = 20
-	preview_page.offset_bottom = -20
 	preview_page.hide()
 	target.add_child(preview_page)
 	preview_page.board.graph.configure_elements(research.available_elements)
@@ -217,9 +216,11 @@ func _build_preview(target: Control) -> void:
 	preview_page.board.changed.connect(_discover_assembly)
 
 func _open_collection() -> void:
+	laboratory.discovery.origin_tab = "Skladanie"
 	laboratory.discovery.show_collection()
 
 func _open_discovery(id: String) -> void:
+	laboratory.discovery.origin_tab = "Hracia plocha" if map_page.visible else ("Skladanie" if preview_page.visible else "Laboratórium")
 	if research.researched.has(id):
 		laboratory.discovery.show_substance(id)
 	elif id in research.available_elements:
@@ -251,6 +252,7 @@ func _assembly_completed(result: Dictionary) -> void:
 	if reward_claimed or not preview_page.board.graph.finalized:
 		return
 	reward_claimed = true
+	laboratory.discovery.origin_tab = "Laboratórium"
 	inventory.credit(result.products)
 	_discover_products(result.products)
 	last_assembly_result = result.duplicate(true)
