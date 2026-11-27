@@ -1,9 +1,25 @@
 extends RefCounted
 ## Session stock and temporarily transferred laboratory portions.
 const Catalog = preload("res://scripts/catalog.gd")
+const RobotAbilities = preload("res://scripts/robot_abilities.gd")
 var stock: Dictionary = {}
 var sample: Dictionary = {}
 var outlets: Dictionary = {}
+var robot_module := ""
+
+func equip_robot_module(id: String) -> bool:
+	if id == robot_module or not RobotAbilities.MODULES.has(id) or not take_from_stock(id):
+		return false
+	unequip_robot_module()
+	robot_module = id
+	return true
+
+func unequip_robot_module() -> bool:
+	if robot_module.is_empty():
+		return false
+	stock[robot_module] += 1
+	robot_module = ""
+	return true
 
 func _init() -> void:
 	for substance in Catalog.stock_items(Catalog.load_data()):

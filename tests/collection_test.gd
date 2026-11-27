@@ -9,10 +9,10 @@ func run_checks() -> void:
 	var main = load("res://scenes/main.tscn").instantiate()
 	main.persistence_enabled = false
 	root.add_child(main)
-	await process_frame
-	await process_frame
 	var arena = main.collection_map
 	arena.set_physics_process(false)
+	await process_frame
+	await process_frame
 	check(arena.cargo.is_empty(), "Empty initial cargo")
 	check(main.finish_button.disabled, "Cannot finish empty collection")
 	arena.finish_collection()
@@ -23,6 +23,10 @@ func run_checks() -> void:
 		check(atom.element_id in ["H", "O"], "No locked elements")
 		counts[atom.element_id] += 1
 	check(counts.H == 24 and counts.O == 24, "Balanced H/O supply")
+	check_airflow(arena)
+	# Keep the explicit pickup fixtures clear of the steering tests.
+	for id in 3:
+		arena.free_atoms[id].position = Vector2(80 + id * 45, 105)
 	var initial: Vector2 = arena.collector.position
 	arena.camera.force_update_scroll()
 	var center: Vector2 = arena.get_global_transform_with_canvas() * initial
@@ -56,35 +60,41 @@ func run_checks() -> void:
 	Input.action_release("move_down")
 	check(is_equal_approx(arena.collector.position.distance_to(initial), 25.5), "No diagonal speed boost")
 	arena.collector.move_in_arena(Vector2(-1, -1), 100, arena.WORLD_SIZE)
-	check(arena.collector.position == Vector2(30, 30), "Top and left bounds include cargo")
+	var margin := Vector2.ONE * float(arena.collector.WORLD_MARGIN)
+	check(arena.collector.position == margin, "Top and left bounds leave room for the bag")
 	arena.collector.move_in_arena(Vector2(1, 1), 100, arena.WORLD_SIZE)
-	check(arena.collector.position == arena.WORLD_SIZE - Vector2(30, 30), "Bottom and right bounds include cargo")
-	arena.collector.position = arena.free_atoms[0].position
+	check(arena.collector.position == arena.WORLD_SIZE - margin, "Bottom and right bounds leave room for the bag")
+	# The intake follows the cursor even while the player stands still.
+	arena.collector.position = Vector2(315, 295)
+	arena.camera.force_update_scroll()
 	arena._physics_process(0)
-	check(arena.cargo.size() == 1 and not arena.free_atoms.has(0), "Contact pickup removes free atom")
-	check(arena.collector.carried.size() == 1 and arena.collector.offsets == [Vector2.ZERO], "First atom replaces root without a duplicate")
+	var forward := Vector2.from_angle(arena.collector.heading)
+	arena.free_atoms[0].position = arena.collector.position + forward * 32.0
+	arena._physics_process(0)
+	check(arena.cargo.size() == 1 and not arena.free_atoms.has(0), "Intake pickup removes free atom")
 	check(not arena.collect_atom(0), "Duplicate pickup rejected")
 	check(not main.finish_button.disabled, "Finish enabled after pickup")
-	arena.free_atoms[1].position = arena.collector.position + Vector2(38, 0)
+	arena.free_atoms[1].position = arena.collector.position - forward * 32.0
 	arena._physics_process(0)
-	check(arena.cargo.size() == 2, "Second atom attaches by contact")
-	arena.free_atoms[2].position = arena.collector.position + arena.collector.offsets[1] + Vector2(38, 0)
+	check(arena.cargo.size() == 1, "Back of the vacuum does not collect atoms")
+	arena.free_atoms[1].position = arena.collector.position + forward * 32.0
 	arena._physics_process(0)
-	check(arena.cargo.size() == 3, "Touching an attached atom collects too")
+	check(arena.cargo.size() == 2, "Intake picks up a second atom")
+	var bag = arena.collector.bag
+	var particle = bag.atoms[0]
+	var original_offset: Vector2 = particle.position
+	arena.collector.aim_at(arena.collector.position - forward * 100.0)
+	check(bag.position.is_equal_approx(arena.collector.BAG_OFFSET.rotated(arena.collector.heading)), "Bag follows the rear of the vacuum as it aims")
+	arena._advance_bag(0.04)
+	check(particle.get_parent() == bag and particle.position != original_offset, "Collected atom moves freely inside the bag")
 	for id in range(1, 12):
 		arena.collect_atom(id)
 	check(arena.cargo.size() == 12 and arena.free_atoms.size() == 36, "Capacity preserves total atom count")
 	check(not arena.collect_atom(12) and arena.free_atoms.has(12), "Full collector leaves extra atom on map")
-	check(arena.collector.carried == arena.cargo, "Visual cargo matches data")
-	for i in range(1, 12):
-		var parent: int = arena.collector.parents[i]
-		check(parent >= 0 and parent < i, "Attachments form a connected tree")
-		check(is_equal_approx(arena.collector.offsets[i].distance_to(arena.collector.offsets[parent]), 60), "Consistent stick length")
-		for j in range(i):
-			check(arena.collector.offsets[i].distance_to(arena.collector.offsets[j]) >= 51.9, "Attached atoms do not overlap")
+	check(not arena.collector.suction_enabled, "Full collector stops pulling atoms")
+	check_bag_impact(arena)
 	arena.collector.move_in_arena(Vector2(-1, -1), 100, arena.WORLD_SIZE)
-	for offset in arena.collector.offsets:
-		check((arena.collector.position + offset).x >= 30 and (arena.collector.position + offset).y >= 30, "Entire group remains within world")
+	check(bag.global_position.x >= bag.RADIUS and bag.global_position.y >= bag.RADIUS, "Bag stays within the map when the player reaches an edge")
 	arena.collector.position = arena.WORLD_SIZE / 2
 	await process_frame
 	arena.camera.force_update_scroll()
@@ -99,6 +109,8 @@ func run_checks() -> void:
 	await screenshot("res://artifacts/a1-map.png")
 	main.finish_button.pressed.emit()
 	check(not arena.active and main.preview_page.visible, "Button enters handoff and freezes map")
+	arena._physics_process(0.1)
+	check(arena.cargo.size() == 12 and arena.free_atoms.size() == 36, "Handoff preserves collection state")
 	check(main.assembly_atoms == arena.cargo and main.assembly_atoms.size() == 12, "All IDs and elements survive handoff")
 	main.assembly_atoms[0]["element"] = "test"
 	check(arena.cargo[0]["element"] == "H", "Handoff is an independent deep copy")
@@ -112,13 +124,72 @@ func run_checks() -> void:
 	main.finish_button.pressed.emit()
 	check(main.assembly_atoms.size() == 12 and main.preview_page.board.graph.atoms.size() == 12, "Second visit does not duplicate assembly atoms")
 	if failures.is_empty():
-		print("A1 PASS: input, bounds, pickup, capacity, identities, handoff, resume")
+		print("A1 PASS: input, gas drift, suction, bag collisions, tears, escape, capacity, handoff")
 	else:
 		for failure in failures:
 			push_error(failure)
 	main.queue_free()
 	await process_frame
 	quit(0 if failures.is_empty() else 1)
+
+func check_airflow(arena: Node2D) -> void:
+	var collector = arena.collector
+	var origin: Vector2 = collector.position
+	collector.aim_at(origin + Vector2.RIGHT)
+	var near: Vector2 = collector.suction_velocity(origin + Vector2(70, 0))
+	var far: Vector2 = collector.suction_velocity(origin + Vector2(150, 0))
+	check(near.x < far.x and far.x < 0.0, "Suction is stronger near the intake")
+	check(collector.suction_velocity(origin + Vector2(50, 90)) == Vector2.ZERO, "Suction only applies inside the invisible cone")
+	collector.aim_at(origin + Vector2.LEFT)
+	check(collector.suction_velocity(origin + Vector2(70, 0)) == Vector2.ZERO, "Suction direction changes when the intake turns")
+	collector.aim_at(origin + Vector2.RIGHT)
+	var atom = arena.free_atoms[2]
+	atom.position = origin + Vector2(112, 40)
+	atom.velocity = Vector2(0, 75)
+	var drift_only: Vector2 = atom.position + atom.velocity * 0.02
+	arena._advance_free_atoms(0.02)
+	check(atom.position.x < drift_only.x and atom.position.y < drift_only.y, "Suction bends a drifting atom's path toward the intake")
+	atom.position = origin + Vector2(-100, -80)
+	var unobstructed: Vector2 = atom.position + atom.velocity * 0.02
+	arena._advance_free_atoms(0.02)
+	check(atom.position.is_equal_approx(unobstructed), "Atoms outside the cone still drift")
+
+func check_bag_impact(arena: Node2D) -> void:
+	arena.collector.position = arena.WORLD_SIZE / 2.0
+	var bag = arena.collector.bag
+	var particle = bag.atoms[0]
+	for candidate in bag.atoms:
+		if candidate.position.x < particle.position.x:
+			particle = candidate
+	var direction := Vector2.LEFT
+	particle.position = direction * (bag.INNER_RADIUS - 0.7)
+	particle.velocity = direction * 100.0
+	arena._advance_bag(0.025)
+	check(particle.velocity.x > 0.0 and arena.cargo.size() == 12, "Intact fabric reflects particles")
+	arena.ball_spawn_in = 0.0
+	arena._advance_balls(0.01)
+	check(arena.balls.size() == 1, "Black balls spawn and move in the collection map")
+	if arena.balls.is_empty():
+		return
+	var ball = arena.balls[0]
+	ball.global_position = bag.to_global(direction * (bag.RADIUS + ball.RADIUS - 1.0))
+	arena._advance_balls(0.0)
+	check(bag.tears.size() == 1 and bag.tears[0].is_equal_approx(direction) and arena.balls.is_empty(), "A hit opens the fabric at the contact angle")
+	var escaped_id: int = particle.atom_id
+	particle.position = direction * (bag.INNER_RADIUS - 0.7)
+	particle.velocity = direction * 100.0
+	arena._advance_bag(0.025)
+	check(particle.get_parent() == arena and arena.free_atoms.get(escaped_id) == particle, "A particle exits only after reaching the tear")
+	check(arena.cargo.size() + arena.free_atoms.size() == 48 and arena.cargo.size() < 12 and arena.collector.suction_enabled, "Escape updates cargo count and reopens the intake")
+	check(not arena.collect_atom(escaped_id), "A leaking particle is not immediately sucked back in")
+	var escaped_ids: Array[int] = []
+	for atom in arena.free_atoms.values():
+		if atom.suction_cooldown > 0.0:
+			escaped_ids.append(atom.atom_id)
+	arena._advance_free_atoms(arena.ESCAPE_COOLDOWN)
+	for id in escaped_ids:
+		check(arena.collect_atom(id), "Escaped particle can be collected again by ID")
+	check(arena.cargo.size() == 12, "Recovered particles refill the bag")
 
 func map_click(point: Vector2, pressed: bool) -> void:
 	var button := InputEventMouseButton.new()

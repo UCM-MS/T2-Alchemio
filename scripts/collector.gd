@@ -1,79 +1,97 @@
 extends Node2D
-## Sticks are collection attachments, never chemical bonds.
-const FONT = preload("res://assets/fonts/NotoSans.ttf")
+
+const Bag = preload("res://scripts/collection_bag.gd")
 const RADIUS := 22.0
 const SPEED := 255.0
-const SPACING := 60.0
-var carried: Array[Dictionary] = []
-var colors: Dictionary = {}
-var offsets: Array[Vector2] = []
-var parents: Array[int] = []
+const INTAKE_OFFSET := 19.0
+const INTAKE_HALF_WIDTH := 11.0
+const SUCTION_RANGE := 168.0
+const SUCTION_HALF_ANGLE := PI / 4.0
+const BAG_OFFSET := Vector2(-77.0, 0.0)
+const WORLD_MARGIN := 133.0
 
-func add_atom(record: Dictionary, incoming: Vector2) -> void:
-	if carried.is_empty():
-		offsets.append(Vector2.ZERO)
-		parents.append(-1)
-	else:
-		var best := Vector2.ZERO
-		var best_parent := 0
-		var best_score := INF
-		for p in offsets.size():
-			var preferred := (incoming - position - offsets[p]).angle()
-			for step in 24:
-				var candidate := offsets[p] + Vector2.from_angle(preferred + step * TAU / 24) * SPACING
-				var clear := true
-				for existing in offsets:
-					if existing.distance_to(candidate) < RADIUS * 2 + 8:
-						clear = false
-						break
-				var score := candidate.distance_squared_to(incoming - position)
-				if clear and score < best_score:
-					best = candidate
-					best_parent = p
-					best_score = score
-		offsets.append(best)
-		parents.append(best_parent)
-	carried.append(record.duplicate(true))
-	queue_redraw()
+var heading := 0.0
+var suction_enabled := true
+var suction_multiplier := 1.0
+var hook_points: PackedVector2Array = []
+var pulse_radius := 0.0
+var pulse_fraction := 0.0
+var shielded := false
+var bag: Bag
 
-func touches(point: Vector2, radius: float) -> bool:
-	if offsets.is_empty():
-		return position.distance_to(point) <= RADIUS + radius
-	for offset in offsets:
-		if (position + offset).distance_to(point) <= RADIUS + radius:
-			return true
-	return false
+func _ready() -> void:
+	bag = Bag.new()
+	bag.position = BAG_OFFSET
+	bag.show_behind_parent = true
+	add_child(bag)
 
-func movement_bounds(world_size: Vector2) -> Rect2:
-	var low := Vector2.ZERO
-	var high := Vector2.ZERO
-	for offset in offsets:
-		low = low.min(offset)
-		high = high.max(offset)
-	var minimum := Vector2.ONE * (RADIUS + 8) - low
-	var maximum := world_size - Vector2.ONE * (RADIUS + 8) - high
-	return Rect2(minimum, maximum - minimum)
+func aim_at(point: Vector2) -> void:
+	var offset := point - position
+	if not offset.is_zero_approx():
+		heading = offset.angle()
+		bag.position = BAG_OFFSET.rotated(heading)
+		bag.rotation = heading
+		queue_redraw()
+
+func suction_velocity(point: Vector2) -> Vector2:
+	if not suction_enabled:
+		return Vector2.ZERO
+	var forward := Vector2.from_angle(heading)
+	var offset := point - (position + forward * INTAKE_OFFSET)
+	var distance := offset.length()
+	if distance == 0.0 or distance > SUCTION_RANGE:
+		return Vector2.ZERO
+	var direction := offset / distance
+	if direction.dot(forward) < cos(SUCTION_HALF_ANGLE):
+		return Vector2.ZERO
+	var proximity := 1.0 - distance / SUCTION_RANGE
+	return -direction * lerpf(30.0, 660.0, proximity * proximity) * suction_multiplier
+
+func reaches_intake(point: Vector2, radius: float) -> bool:
+	var forward := Vector2.from_angle(heading)
+	var offset := point - position
+	return (
+		offset.dot(forward) >= INTAKE_OFFSET - radius * 0.5
+		and offset.distance_squared_to(forward * INTAKE_OFFSET) <= (INTAKE_HALF_WIDTH + radius) ** 2
+	)
 
 func move_in_arena(direction: Vector2, delta: float, world_size: Vector2) -> void:
 	position += direction.limit_length() * SPEED * delta
-	var bounds := movement_bounds(world_size)
-	position = position.clamp(bounds.position, bounds.end)
+	# Leave room for the rear bag at every aiming angle.
+	var padding := Vector2.ONE * WORLD_MARGIN
+	position = position.clamp(padding, world_size - padding)
 
 func _draw() -> void:
-	for i in range(1, offsets.size()):
-		var direction := (offsets[i] - offsets[parents[i]]).normalized()
-		draw_line(offsets[parents[i]] + direction * RADIUS, offsets[i] - direction * RADIUS, Color("789197"), 3, true)
-	if carried.is_empty():
-		draw_circle(Vector2.ZERO, RADIUS, Color("244c50"))
-		draw_arc(Vector2.ZERO, RADIUS, 0, TAU, 48, Color("7ed9c3"), 2, true)
-		draw_circle(Vector2.ZERO, 4, Color("baf5e5"))
-	else:
-		for i in carried.size():
-			var symbol: String = carried[i]["element"]
-			var tint: Color = colors[symbol]
-			draw_circle(offsets[i], RADIUS, tint.darkened(0.78))
-			draw_arc(offsets[i], RADIUS, 0, TAU, 40, tint, 2, true)
-			var width := FONT.get_string_size(symbol, HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
-			draw_string(FONT, offsets[i] + Vector2(-width / 2, 8), symbol, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, tint)
-	# Ring identifies the controlled root without adding a second atom.
-	draw_arc(Vector2.ZERO, RADIUS + 5, 0, TAU, 48, Color("7ed9c3"), 1, true)
+	if pulse_fraction > 0.0:
+		draw_arc(Vector2.ZERO, lerpf(pulse_radius, 22.0, pulse_fraction), 0.0, TAU, 96, Color(0.53, 0.96, 0.88, pulse_fraction), 2.5, true)
+	for point in hook_points:
+		var tip := point - global_position
+		draw_line(Vector2.from_angle(heading) * INTAKE_OFFSET, tip, Color("8de9da"), 2.5, true)
+		draw_circle(tip, 5.0, Color("e4fffb"), true, -1.0, true)
+	if shielded:
+		draw_arc(bag.position, Bag.RADIUS + 5.0, 0.0, TAU, 64, Color("72eac5"), 2.5, true)
+	draw_circle(Vector2(1, 3), RADIUS + 2.0, Color(0.02, 0.04, 0.08, 0.65), true, -1.0, true)
+	draw_set_transform(Vector2.ZERO, heading)
+	# Low circular chassis, side brush and raised navigation sensor.
+	for side in [-1.0, 1.0]:
+		var hub := Vector2(9.0, side * 20.0)
+		for step in 3:
+			var bristle := Vector2.from_angle(side * PI / 2.0 + (step - 1) * 0.65)
+			draw_line(hub, hub + bristle * 7.0, Color("8f9da0"), 1.5, true)
+		draw_circle(hub, 3.0, Color("46596a"), true, -1.0, true)
+	draw_circle(Vector2.ZERO, RADIUS, Color("172835"), true, -1.0, true)
+	draw_circle(Vector2(-1, -1), RADIUS - 3.0, Color("cfdfdf"), true, -1.0, true)
+	draw_arc(Vector2(-1, -1), RADIUS - 4.0, PI * 0.65, PI * 1.43, 32, Color("f3faf2"), 1.5, true)
+	draw_circle(Vector2(-7, -2), 8.0, Color("586d76"), true, -1.0, true)
+	draw_circle(Vector2(-7, -3), 6.1, Color("223a46"), true, -1.0, true)
+	draw_circle(Vector2(-9, -5), 2.0, Color("a0c9c6"), true, -1.0, true)
+	draw_line(Vector2(4, -6), Vector2(4, 6), Color("738c94"), 1.0, true)
+	draw_circle(Vector2(3.5, 0), 2.4, Color("7df4d7") if suction_enabled else Color("849299"), true, -1.0, true)
+
+	# The amber grille alone shows the direction of the invisible suction zone.
+	var grille := Rect2(INTAKE_OFFSET - 6.0, -INTAKE_HALF_WIDTH, 8.0, INTAKE_HALF_WIDTH * 2.0)
+	draw_rect(grille, Color("162432"))
+	var light := Color("ff9d45") if suction_enabled else Color("b28764")
+	for y in range(-8, 9, 4):
+		draw_line(Vector2(16.0, y), Vector2(20.0, y), light, 1.5, true)
+	draw_line(Vector2(21.0, -9.0), Vector2(21.0, 9.0), light, 2.0, true)

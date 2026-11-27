@@ -2,6 +2,7 @@ extends MarginContainer
 signal new_collection_requested
 signal progress_changed
 signal new_game_requested
+signal robot_requested
 signal experiment_completed(id: String, products: Dictionary)
 
 const UI = preload("res://scripts/workspace_ui.gd")
@@ -75,6 +76,9 @@ func _ready() -> void:
 	var new_game := UI.button(header, "Nová hra")
 	new_game.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	new_game.pressed.connect(func(): new_game_requested.emit())
+	var robot := UI.button(header, "Robot")
+	robot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	robot.pressed.connect(func(): robot_requested.emit())
 	discovery = DiscoveryPanel.new()
 	add_child(discovery)
 	var help := UI.button(header, "Pomoc")

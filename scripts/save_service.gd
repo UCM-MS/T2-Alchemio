@@ -1,5 +1,6 @@
 extends RefCounted
 const Catalog = preload("res://scripts/catalog.gd")
+const RobotAbilities = preload("res://scripts/robot_abilities.gd")
 const VERSION := 4
 const REMOVED_SUBSTANCES := ["nitrogen", "ammonia"]
 const MAX_PORTIONS := 1000000000
@@ -11,9 +12,12 @@ func snapshot(inventory: RefCounted, research: RefCounted) -> Dictionary:
 	for container in [inventory.sample, inventory.outlets]:
 		for id in container:
 			totals[id] += container[id]
+	if not inventory.robot_module.is_empty():
+		totals[inventory.robot_module] += 1
 	return {
 		"version": VERSION,
 		"inventory": totals,
+		"robot_module": inventory.robot_module,
 		"researched": research.researched.keys(),
 		"completed_experiments": research.completed_experiments.keys(),
 		"legacy_carbon_unlocked": research.legacy_carbon_unlocked,
@@ -75,8 +79,14 @@ func validate(value: Variant) -> Dictionary:
 			for symbol in known[id].atoms:
 				if symbol not in available:
 					return {}
+	var module: Variant = value.get("robot_module", "")
+	if not module is String or (not module.is_empty() and (not RobotAbilities.MODULES.has(module) or totals.get(module, 0) < 1)):
+		return {}
+	if not module.is_empty():
+		totals[module] -= 1
 	return {
 		"inventory": totals,
+		"robot_module": module,
 		"researched": researched,
 		"available_elements": available,
 		"completed_experiments": completed,

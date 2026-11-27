@@ -1,15 +1,19 @@
 extends Node2D
-## A free collectible, not a molecule.
+## A collectible particle in the world or the collection bag.
 const RADIUS := 17.0
 const FONT = preload("res://assets/fonts/NotoSans.ttf")
 var atom_id: int
 var element_id: String
 var tint: Color
+var relative_mass: float
+var velocity := Vector2.ZERO
+var suction_cooldown := 0.0
 
 func configure(id: int, element: Dictionary) -> void:
 	atom_id = id
 	element_id = element["id"]
 	tint = Color(element["color"])
+	relative_mass = float(element["relative_atomic_mass"])
 	queue_redraw()
 
 func _draw() -> void:

@@ -7,6 +7,8 @@ const LabScene = preload("res://scenes/laboratory.tscn")
 const SaveService = preload("res://scripts/save_service.gd")
 const HelpDialog = preload("res://scripts/help_dialog.gd")
 const DiscoveryNotice = preload("res://scripts/discovery_notice.gd")
+const RobotDialog = preload("res://scripts/robot_dialog.gd")
+const Abilities = preload("res://scripts/robot_abilities.gd")
 var discovery_notice: PanelContainer
 var map_help: AcceptDialog
 var save_service = SaveService.new()
@@ -28,12 +30,16 @@ var preview_page: VBoxContainer
 var last_assembly_result: Dictionary = {}
 var screen: Control
 var preview_background: ColorRect
+var robot_dialog: AcceptDialog
+var ability_label: Label
+var ability_bar: ProgressBar
 
 func _ready() -> void:
 	TranslationServer.set_locale("sk")
 	var loaded: Dictionary = save_service.load_progress() if persistence_enabled else {"status": "missing"}
 	if loaded.has("data"):
 		inventory.stock = loaded.data.inventory
+		inventory.robot_module = loaded.data.get("robot_module", "")
 		research.researched = loaded.data.researched
 		research.completed_experiments = loaded.data.completed_experiments
 		research.legacy_carbon_unlocked = loaded.data.legacy_carbon_unlocked
@@ -72,6 +78,23 @@ func _ready() -> void:
 	cargo_label.offset_top = 24
 	cargo_label.offset_bottom = 64
 	cargo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var ability_panel := UI.panel(map_page, UI.PANEL, 9, 10)
+	ability_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ability_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	ability_panel.offset_left = -320
+	ability_panel.offset_right = -28
+	ability_panel.offset_top = 64
+	var ability_column := UI.column(ability_panel, 5)
+	ability_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ability_label = UI.label(ability_column, "", 15, UI.MINT, true)
+	ability_bar = ProgressBar.new()
+	ability_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ability_bar.show_percentage = false
+	ability_bar.max_value = Abilities.COOLDOWN
+	ability_bar.custom_minimum_size.y = 5
+	ability_bar.add_theme_stylebox_override("background", UI.box(UI.EDGE, UI.EDGE, 3, 0))
+	ability_bar.add_theme_stylebox_override("fill", UI.box(UI.ACCENT, UI.ACCENT, 3, 0))
+	ability_column.add_child(ability_bar)
 	hint_label = add_label(map_page, "", 16, Color("a5b4cb"))
 	hint_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	hint_label.offset_left = 28
@@ -97,14 +120,21 @@ func _ready() -> void:
 	laboratory.progress_changed.connect(_save_progress)
 	laboratory.experiment_completed.connect(_complete_experiment)
 	laboratory.new_game_requested.connect(_request_new_game)
+	laboratory.robot_requested.connect(_show_robot)
 	laboratory.hide()
 	collection_map = MapScene.instantiate()
+	collection_map.robot_module = inventory.robot_module
 	collection_map.available_elements = research.available_elements.duplicate()
 	collection_map.cargo_changed.connect(_update_cargo)
 	collection_map.collection_finished.connect(_show_handoff)
 	finish_button.pressed.connect(collection_map.finish_collection)
 	add_child(collection_map)
 	_build_save_controls()
+	robot_dialog = RobotDialog.new()
+	robot_dialog.theme = UI.theme()
+	screen.add_child(robot_dialog)
+	robot_dialog.module_changed.connect(_robot_module_changed)
+	robot_dialog.visibility_changed.connect(_robot_dialog_visibility_changed)
 	var notice_layer := CanvasLayer.new()
 	notice_layer.layer = 20
 	add_child(notice_layer)
@@ -137,6 +167,31 @@ func _ready() -> void:
 	else:
 		save_label.text = "Ukladá sa zásoba, objavy a pokusy; rozpracovaný zber a skladanie nie."
 
+func _process(_delta: float) -> void:
+	if not map_page.visible:
+		return
+	var ability: Dictionary = Abilities.MODULES.get(inventory.robot_module, {})
+	ability_bar.visible = not ability.is_empty()
+	if ability.is_empty():
+		ability_label.text = "Robot  ·  prázdny slot"
+		return
+	var remaining: float = collection_map.ability_cooldown
+	ability_label.text = "Medzerník  ·  %s  ·  %s" % [
+		ability.name, "pripravené" if remaining <= 0.0 else "%.1f s" % remaining]
+	ability_bar.value = Abilities.COOLDOWN - remaining
+
+func _show_robot() -> void:
+	robot_dialog.show_for(inventory, research.catalog)
+
+func _robot_module_changed() -> void:
+	collection_map.robot_module = inventory.robot_module
+	laboratory.refresh()
+	_save_progress()
+
+func _robot_dialog_visibility_changed() -> void:
+	collection_map.controls_blocked = robot_dialog.visible
+	collection_map.following_mouse = false
+
 func _build_save_controls() -> void:
 	save_label = add_label(screen, "", 13, Color("a5b4cb"))
 	save_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -156,7 +211,13 @@ func _build_save_controls() -> void:
 	help_button.text = "? Pomoc"
 	help_button.position = Vector2(180, 24)
 	map_page.add_child(help_button)
-	help_button.pressed.connect(func(): map_help.open("Zber atómov", "Pohybuj sa pomocou WASD alebo šípok. Ak chceš ísť za kurzorom, podrž na mape ľavé tlačidlo myši. Atóm sa pripojí pri dotyku ľubovoľnou časťou tvojej skupiny.\n\nKapacita je %d atómov. Hľadaj rôzne symboly a zbieraj ich podľa potreby.\n\nK skladaniu otvorí pracovnú plochu. Pred dokončením sa môžeš vrátiť na tú istú mapu a pokračovať v zbieraní.\n\nTyčky pri zbere sú iba uchytenia. Chemické väzby vytvoríš až pri skladaní. Rozpracovaný zber a skladanie sa po zatvorení hry neobnovia." % collection_map.capacity))
+	var robot_button := Button.new()
+	robot_button.text = "Robot"
+	robot_button.focus_mode = Control.FOCUS_NONE
+	robot_button.position = Vector2(320, 24)
+	map_page.add_child(robot_button)
+	robot_button.pressed.connect(_show_robot)
+	help_button.pressed.connect(func(): map_help.open("Zber atómov", "Vysávač ovládaš pomocou WASD, šípok alebo podržaním ľavého tlačidla myši na mape. Oranžový otvor mieri za kurzorom a nasáva atómy do vrecka. Naraz ich unesie %d.\n\nČierna guľa môže vrecko roztrhnúť. Atómy, ktoré vyletia cez trhlinu, môžeš znova nazbierať.\n\nTlačidlo K skladaniu otvorí pracovnú plochu, kde spojíš atómy chemickými väzbami. Pred dokončením sa môžeš vrátiť k zberu. Rozpracovaný zber a skladanie sa po zatvorení hry neobnovia." % collection_map.capacity))
 	reset_confirmation = ConfirmationDialog.new()
 	reset_confirmation.exclusive = true
 	reset_confirmation.title = "Nová hra?"
@@ -258,11 +319,7 @@ func _assembly_completed(result: Dictionary) -> void:
 	_discover_products(result.products)
 	last_assembly_result = result.duplicate(true)
 	assembly_atoms.clear()
-	collection_map.cargo.clear()
-	collection_map.collector.carried.clear()
-	collection_map.collector.offsets.clear()
-	collection_map.collector.parents.clear()
-	collection_map.collector.queue_redraw()
+	collection_map.clear_cargo()
 	preview_page.hide()
 	laboratory.show()
 	laboratory.refresh()
@@ -276,6 +333,7 @@ func _new_collection() -> void:
 	inventory.return_sample()
 	laboratory.hide()
 	reward_claimed = false
+	var remaining: float = collection_map.ability_cooldown
 	remove_child(collection_map)
 	collection_map.queue_free()
 	screen.remove_child(preview_page)
@@ -284,6 +342,8 @@ func _new_collection() -> void:
 	_build_preview(screen)
 	map_page.show()
 	collection_map = MapScene.instantiate()
+	collection_map.robot_module = inventory.robot_module
+	collection_map.ability_cooldown = remaining
 	collection_map.available_elements = research.available_elements.duplicate()
 	collection_map.cargo_changed.connect(_update_cargo)
 	collection_map.collection_finished.connect(_show_handoff)
@@ -302,9 +362,9 @@ func _update_cargo(atoms: Array[Dictionary], capacity: int) -> void:
 		parts.append("%s %d" % [symbol, counts.get(symbol, 0)])
 	cargo_label.text = "%s  |  %d / %d" % ["  ".join(parts), atoms.size(), capacity]
 	finish_button.disabled = atoms.is_empty()
-	hint_label.text = "Pohyb: WASD / šípky alebo podrž ľavé tlačidlo myši.\nZbieraj atómy dotykom, potom zvoľ K skladaniu.\nTyčky sú uchytenia, nie chemické väzby."
+	hint_label.text = "Pohyb: WASD / šípky alebo podrž ľavé tlačidlo myši.\nOranžový otvor mieri za kurzorom. Chráň vrecko pred čiernymi guľami."
 	if atoms.size() >= capacity:
-		hint_label.text += "\nZberač je plný. Pokračuj k skladaniu."
+		hint_label.text += "\nVrecko je plné. Pokračuj k skladaniu."
 
 func _show_handoff(atoms: Array[Dictionary]) -> void:
 	assembly_atoms = atoms.duplicate(true)
